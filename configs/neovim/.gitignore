@@ -1,0 +1,13 @@
+# Neovim runtime files
+.cache/
+.data/
+.state/
+.nvimlog
+*.backup-*
+
+# Lazy.nvim lock file (should not be managed by Nix)
+lazy-lock.json
+
+# Local configuration overrides
+.claude/
+local/
