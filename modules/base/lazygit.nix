@@ -4,6 +4,14 @@
   programs.lazygit = {
     enable = true;
     settings = {
+      git = {
+        autoFetch = false;
+        paging = {
+          colorArg = "always";
+          pager = "delta --dark --paging=never";
+        };
+      };
+
       gui = {
         theme = {
           activeBorderColor = ["#89b4fa" "bold"];
@@ -22,13 +30,6 @@
 
         commitLength = {
           show = true;
-        };
-      };
-
-      git = {
-        paging = {
-          colorArg = "always";
-          pager = "delta --dark --paging=never";
         };
       };
     };
