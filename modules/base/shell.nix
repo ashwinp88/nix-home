@@ -3,23 +3,14 @@
 {
   programs.zsh = {
     enable = true;
+    enableCompletion = true;
+    autosuggestion.enable = true;
+    syntaxHighlighting.enable = true;
 
     oh-my-zsh = {
       enable = true;
-      theme = "robbyrussell";  # You can change this to your preferred theme
-      plugins = [
-        "git"
-        "docker"
-        "kubectl"
-        "nvm"
-        "npm"
-        "ruby"
-        "rails"
-        "bundler"
-        "z"          # Directory jumping
-        "sudo"       # Press ESC twice to add sudo to command
-        "history"    # Better history management
-      ];
+      theme = "robbyrussell";
+      plugins = [ "git" ];
     };
 
     initContent = ''
@@ -44,6 +35,14 @@
       }
       zle -N fzf-history-widget
       bindkey '^r' fzf-history-widget
+
+      PROMPT='%{$fg[blue]%}%~%{$reset_color%} $(git_prompt_info)
+%{$fg[green]%}❯%{$reset_color%} '
+
+      ZSH_THEME_GIT_PROMPT_PREFIX="on %{$fg[green]%}"
+      ZSH_THEME_GIT_PROMPT_SUFFIX="%{$reset_color%}"
+      ZSH_THEME_GIT_PROMPT_DIRTY=" %{$fg[red]%}[!+]%{$reset_color%}"
+      ZSH_THEME_GIT_PROMPT_CLEAN=""
 
       setopt EXTENDED_HISTORY
       setopt HIST_EXPIRE_DUPS_FIRST
@@ -89,73 +88,6 @@
     };
   };
 
-  programs.starship = {
-    enable = true;
-    enableZshIntegration = true;
-
-    settings = {
-      # Customize your prompt here
-      format = lib.concatStrings [
-        "$directory"
-        "$git_branch"
-        "$git_status"
-        "$ruby"
-        "$nodejs"
-        "$java"
-        "$python"
-        "$nix_shell"
-        "$cmd_duration"
-        "$line_break"
-        "$character"
-      ];
-
-      directory = {
-        style = "blue bold";
-        truncation_length = 3;
-        truncate_to_repo = true;
-      };
-
-      git_branch = {
-        style = "green bold";
-        symbol = " ";
-      };
-
-      git_status = {
-        style = "red bold";
-      };
-
-      ruby = {
-        style = "red bold";
-        symbol = " ";
-      };
-
-      nodejs = {
-        style = "green bold";
-        symbol = " ";
-      };
-
-      java = {
-        style = "red bold";
-        symbol = " ";
-      };
-
-      nix_shell = {
-        style = "blue bold";
-        symbol = " ";
-      };
-
-      character = {
-        success_symbol = "[❯](bold green)";
-        error_symbol = "[❯](bold red)";
-      };
-
-      cmd_duration = {
-        min_time = 500;
-        style = "yellow bold";
-        format = "took [$duration]($style) ";
-      };
-    };
-  };
 
   # Enable direnv for automatic environment switching
   programs.direnv = {

@@ -8,19 +8,12 @@
     nerd-fonts.jetbrains-mono  # Alternative font option
   ];
 
-  # macOS-specific tmux configuration
+  # macOS-specific tmux configuration (ONLY clipboard)
   programs.tmux.extraConfig = ''
-    # macOS - recommended by tmux-yank for proper clipboard
     set -g default-command "reattach-to-user-namespace -l ''${SHELL}"
-
-    # Yank to clipboard and stay in copy mode at current position
     bind-key -T copy-mode-vi y send-keys -X copy-pipe "reattach-to-user-namespace pbcopy"
     bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "reattach-to-user-namespace pbcopy"
-
-    # IMPORTANT: Override bindings AFTER all plugins load
-    # This ensures our settings take precedence
-    # Mouse drag should copy but not exit copy mode
-    bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-selection-no-clear
+    run-shell 'tmux bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-selection-no-clear'
   '';
 
   # Homebrew environment variables

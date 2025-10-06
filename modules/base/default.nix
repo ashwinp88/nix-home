@@ -7,5 +7,6 @@
     ./neovim.nix
     ./shell.nix
     ./git.nix
+    ./lazygit.nix
   ];
 }

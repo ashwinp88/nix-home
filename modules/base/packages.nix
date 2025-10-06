@@ -4,6 +4,7 @@
   home.packages = with pkgs; [
     # Development tools
     lazygit         # Git UI
+    delta           # Better git diff
     ripgrep         # Better grep
     fd              # Better find
     fzf             # Fuzzy finder
@@ -29,7 +30,6 @@
     # Additional tools
     tmux            # Terminal multiplexer
     direnv          # Environment management
-    starship        # Shell prompt
     sqlite          # For yanky.nvim database
   ];
 
