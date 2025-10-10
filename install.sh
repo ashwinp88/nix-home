@@ -130,7 +130,11 @@ curl -fsSL "$BOOTSTRAP_URL" -o "$TMP_DIR/bootstrap.sh"
 chmod +x "$TMP_DIR/bootstrap.sh"
 
 print_step "Running bootstrap (flake auto-detected)"
-bash "$TMP_DIR/bootstrap.sh" "${BOOTSTRAP_ARGS[@]}"
+if [[ ${#BOOTSTRAP_ARGS[@]} -gt 0 ]]; then
+  bash "$TMP_DIR/bootstrap.sh" "${BOOTSTRAP_ARGS[@]}"
+else
+  bash "$TMP_DIR/bootstrap.sh"
+fi
 
 if [ -f "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh" ]; then
   print_step "Sourcing hm-session-vars.sh"
