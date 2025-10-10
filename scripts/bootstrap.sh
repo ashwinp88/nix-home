@@ -223,15 +223,18 @@ fi
 run_home_manager() {
   local action="$1"
   shift
-  local forwarded=()
   if (( ${#HM_ARGS[@]} )); then
     print_step "Forwarding to home-manager: ${HM_ARGS[*]}"
-    forwarded=( "${HM_ARGS[@]}" )
+    env USER="$HM_USER" HOME="$HM_HOME" nix run --refresh \
+      --extra-experimental-features 'nix-command flakes' \
+      home-manager/master \
+      -- "$action" --impure --flake "${FLAKE_PATH}" "$@" "${HM_ARGS[@]}"
+  else
+    env USER="$HM_USER" HOME="$HM_HOME" nix run --refresh \
+      --extra-experimental-features 'nix-command flakes' \
+      home-manager/master \
+      -- "$action" --impure --flake "${FLAKE_PATH}" "$@"
   fi
-  env USER="$HM_USER" HOME="$HM_HOME" nix run --refresh \
-    --extra-experimental-features 'nix-command flakes' \
-    home-manager/master \
-    -- "$action" --impure --flake "${FLAKE_PATH}" "$@" "${forwarded[@]}"
 }
 
 if [[ "$PREPARE_ONLY" == "true" ]]; then
