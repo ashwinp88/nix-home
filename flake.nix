@@ -18,6 +18,7 @@
 
   outputs = { self, nixpkgs, home-manager, nix-homebrew, ... }:
     let
+      lib = nixpkgs.lib;
       # Systems we support
       darwinSystem = "aarch64-darwin";  # Apple Silicon, change to x86_64-darwin for Intel
       linuxSystemX86 = "x86_64-linux";  # Standard Linux x86_64
@@ -32,15 +33,19 @@
         };
       };
 
+      defaultUsername =
+        let envUser = builtins.getEnv "USER";
+        in if envUser != "" then envUser else "ashwin";
+
       # Create home manager configuration with modules
-      mkHomeConfig = { system, modules, username ? "ashwin" }:
+      mkHomeConfig = { system, modules, username ? defaultUsername }:
         home-manager.lib.homeManagerConfiguration {
           pkgs = pkgsFor system;
 
           modules = modules ++ [
             {
               home = {
-                inherit username;
+                username = lib.mkDefault username;
                 homeDirectory =
                   if system == darwinSystem then "/Users/${username}"
                   else "/home/${username}";
@@ -53,7 +58,7 @@
           ];
 
           extraSpecialArgs = {
-            inherit system;
+            inherit system username;
           };
         };
     in
