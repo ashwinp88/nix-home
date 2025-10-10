@@ -41,19 +41,23 @@ A modular, portable Nix configuration for development environments across macOS 
 ### Installation
 
 ```bash
-# Clone this repository
+# Install via one-liner (installs Nix if needed and runs the bootstrap helper)
+curl -L https://raw.githubusercontent.com/ashwinp88/nix-home/main/install.sh | bash
+
+# Or clone manually
 git clone https://github.com/ashwinp88/nix-home.git ~/Code/nix-home
 cd ~/Code/nix-home
 
-# Build configuration
-home-manager build --flake .#base-darwin  # macOS
-# or
-home-manager build --flake .#base-linux   # Linux
+# Install Nix (multi-user) from https://nixos.org/download.html first if you
+# skip the one-liner. Then run the bootstrap helper; it detects the OS
+# automatically and enables flakes/nix-command before invoking Home Manager.
 
-# Apply configuration
-home-manager switch --flake .#base-darwin  # macOS
-# or
-home-manager switch --flake .#base-linux   # Linux
+./scripts/bootstrap.sh                 # auto-detects macOS/Linux
+./scripts/bootstrap.sh --prepare-only  # just build (no switch)
+./scripts/bootstrap.sh --base          # apply base modules only
+
+# Use --darwin/--linux to override detection and pass extra flags after --, e.g.
+./scripts/bootstrap.sh -- --show-trace
 ```
 
 ### First-Time Setup

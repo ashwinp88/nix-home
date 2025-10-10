@@ -58,6 +58,21 @@
     in
     {
       homeConfigurations = {
+        # Base-only configuration (no OS-specific modules)
+        "base-core-darwin" = mkHomeConfig {
+          system = darwinSystem;
+          modules = [
+            ./modules/base/default.nix
+          ];
+        };
+
+        "base-core-linux" = mkHomeConfig {
+          system = linuxSystem;
+          modules = [
+            ./modules/base/default.nix
+          ];
+        };
+
         # macOS configuration
         "base-darwin" = mkHomeConfig {
           system = darwinSystem;
