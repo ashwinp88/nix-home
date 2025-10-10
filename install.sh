@@ -131,3 +131,12 @@ chmod +x "$TMP_DIR/bootstrap.sh"
 
 print_step "Running bootstrap (flake auto-detected)"
 bash "$TMP_DIR/bootstrap.sh" "${BOOTSTRAP_ARGS[@]}"
+
+if [ -f "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh" ]; then
+  print_step "Sourcing hm-session-vars.sh"
+  . "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh"
+fi
+if [ -f "$HOME/.nix-profile/etc/profile.d/home-manager.sh" ]; then
+  print_step "Sourcing home-manager.sh"
+  . "$HOME/.nix-profile/etc/profile.d/home-manager.sh"
+fi
