@@ -35,10 +35,14 @@
 
       defaultUsername =
         let envUser = builtins.getEnv "USER";
-        in if envUser != "" then envUser else "ashwin";
+        in if envUser != "" then envUser else throw "USER environment variable is required";
 
       # Create home manager configuration with modules
       mkHomeConfig = { system, modules, username ? defaultUsername }:
+        let
+          envHome = builtins.getEnv "HOME";
+          finalHome = if envHome != "" then envHome else throw "HOME environment variable is required";
+        in
         home-manager.lib.homeManagerConfiguration {
           pkgs = pkgsFor system;
 
@@ -46,9 +50,7 @@
             {
               home = {
                 username = lib.mkDefault username;
-                homeDirectory =
-                  if system == darwinSystem then "/Users/${username}"
-                  else "/home/${username}";
+                homeDirectory = lib.mkDefault finalHome;
                 stateVersion = "24.05";
               };
 

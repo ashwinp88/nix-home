@@ -16,6 +16,7 @@ Options:
   --prepare-only   Prepare configuration and run `home-manager build`.
   --flake REF      Override the flake reference (default: local repo or github:ashwinp88/nix-home).
   --arch ARCH      Override Linux architecture detection (x86_64, aarch64).
+  --home PATH      Override HOME environment passed to the flake (required if HOME is unset).
   -h, --help       Show this help message.
 
 Any arguments provided after `--` (or the first unrecognised flag)
@@ -28,6 +29,7 @@ TARGET_ARCH=""
 BASE_ONLY="false"
 PREPARE_ONLY="false"
 FLAKE_BASE=""
+OVERRIDE_HOME=""
 HM_ARGS=()
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -72,6 +74,11 @@ while [[ $# -gt 0 ]]; do
     --arch)
       [[ $# -ge 2 ]] || { echo "--arch expects an argument" >&2; exit 1; }
       TARGET_ARCH="$2"
+      shift 2
+      ;;
+    --home)
+      [[ $# -ge 2 ]] || { echo "--home expects an argument" >&2; exit 1; }
+      OVERRIDE_HOME="$2"
       shift 2
       ;;
     -h|--help)
@@ -166,6 +173,16 @@ if [[ -z "$HM_USER" ]]; then
   export USER="$HM_USER"
 fi
 
+HM_HOME="${HOME:-}"
+if [[ -n "$OVERRIDE_HOME" ]]; then
+  HM_HOME="$OVERRIDE_HOME"
+fi
+if [[ -z "$HM_HOME" ]]; then
+  echo "HOME environment variable is empty; use --home /path/to/home" >&2
+  exit 1
+fi
+export HOME="$HM_HOME"
+
 if ! command -v nix >/dev/null 2>&1; then
   echo "Nix is not installed. Install Nix first: https://nixos.org/download.html" >&2
   exit 1
@@ -205,14 +222,14 @@ fi
 
 if [[ "$PREPARE_ONLY" == "true" ]]; then
   print_step "Building home-manager configuration (${FLAKE_ATTR})"
-  env USER="$HM_USER" nix run --refresh --impure \
+  env USER="$HM_USER" HOME="$HM_HOME" nix run --refresh \
     --extra-experimental-features 'nix-command flakes' \
     home-manager/master \
-    -- build --flake "${FLAKE_PATH}" "${HM_ARGS[@]}"
+    -- build --impure --flake "${FLAKE_PATH}" "${HM_ARGS[@]}"
 else
   print_step "Running home-manager switch (${FLAKE_ATTR})"
-  exec env USER="$HM_USER" nix run --refresh --impure \
+  exec env USER="$HM_USER" HOME="$HM_HOME" nix run --refresh \
     --extra-experimental-features 'nix-command flakes' \
     home-manager/master \
-    -- switch --flake "${FLAKE_PATH}" "${HM_ARGS[@]}"
+    -- switch --impure --flake "${FLAKE_PATH}" "${HM_ARGS[@]}"
 fi

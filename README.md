@@ -55,6 +55,7 @@ cd ~/Code/nix-home
 ./scripts/bootstrap.sh                 # auto-detects macOS/Linux
 ./scripts/bootstrap.sh --prepare-only  # just build (no switch)
 ./scripts/bootstrap.sh --base          # apply base modules only
+./scripts/bootstrap.sh --home /custom/home   # override HOME if needed
 
 # Use --darwin/--linux to override detection and pass extra flags after --, e.g.
 ./scripts/bootstrap.sh -- --show-trace
