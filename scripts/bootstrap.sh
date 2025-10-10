@@ -220,16 +220,24 @@ else
   mv "${tmp_file}" "${CONFIG_FILE}"
 fi
 
-if [[ "$PREPARE_ONLY" == "true" ]]; then
-  print_step "Building home-manager configuration (${FLAKE_ATTR})"
+run_home_manager() {
+  local action="$1"
+  shift
+  local forwarded=()
+  if (( ${#HM_ARGS[@]} )); then
+    print_step "Forwarding to home-manager: ${HM_ARGS[*]}"
+    forwarded=( "${HM_ARGS[@]}" )
+  fi
   env USER="$HM_USER" HOME="$HM_HOME" nix run --refresh \
     --extra-experimental-features 'nix-command flakes' \
     home-manager/master \
-    -- build --impure --flake "${FLAKE_PATH}" "${HM_ARGS[@]}"
+    -- "$action" --impure --flake "${FLAKE_PATH}" "$@" "${forwarded[@]}"
+}
+
+if [[ "$PREPARE_ONLY" == "true" ]]; then
+  print_step "Building home-manager configuration (${FLAKE_ATTR})"
+  run_home_manager build
 else
   print_step "Running home-manager switch (${FLAKE_ATTR})"
-  exec env USER="$HM_USER" HOME="$HM_HOME" nix run --refresh \
-    --extra-experimental-features 'nix-command flakes' \
-    home-manager/master \
-    -- switch --impure --flake "${FLAKE_PATH}" "${HM_ARGS[@]}"
+  run_home_manager switch
 fi
