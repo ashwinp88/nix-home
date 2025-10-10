@@ -16,6 +16,10 @@
     };
 
     initContent = ''
+      if [ -f "$HOME/.config/zsh/local.zsh" ]; then
+        source "$HOME/.config/zsh/local.zsh"
+      fi
+
       export JAVA_HOME="${pkgs.jdk21}/lib/openjdk"
       export PATH="$JAVA_HOME/bin:$PATH"
 

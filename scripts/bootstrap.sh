@@ -183,6 +183,21 @@ if [[ -z "$HM_HOME" ]]; then
 fi
 export HOME="$HM_HOME"
 
+preserve_existing_configs() {
+  local legacy_dir="$HM_HOME/.config/zsh"
+  local legacy_file="$legacy_dir/local.zsh"
+  if [[ -f "$HM_HOME/.zshrc" && ! -L "$HM_HOME/.zshrc" ]]; then
+    local backup="$HM_HOME/.zshrc.pre-nix-home"
+    print_step "Backing up existing .zshrc to ${backup}"
+    mkdir -p "$legacy_dir"
+    cp "$HM_HOME/.zshrc" "$legacy_file"
+    mv "$HM_HOME/.zshrc" "$backup"
+    print_step "Legacy zsh config will be sourced from ${legacy_file}"
+  fi
+}
+
+preserve_existing_configs
+
 if ! command -v nix >/dev/null 2>&1; then
   echo "Nix is not installed. Install Nix first: https://nixos.org/download.html" >&2
   exit 1
