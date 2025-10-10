@@ -141,9 +141,13 @@ fi
 
 if [ -f "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh" ]; then
   print_step "Sourcing hm-session-vars.sh"
+  set +u
   . "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh"
+  set -u
 fi
 if [ -f "$HOME/.nix-profile/etc/profile.d/home-manager.sh" ]; then
   print_step "Sourcing home-manager.sh"
+  set +u
   . "$HOME/.nix-profile/etc/profile.d/home-manager.sh"
+  set -u
 fi
