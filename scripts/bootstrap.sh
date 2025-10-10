@@ -205,13 +205,13 @@ fi
 
 if [[ "$PREPARE_ONLY" == "true" ]]; then
   print_step "Building home-manager configuration (${FLAKE_ATTR})"
-  env USER="$HM_USER" nix run \
+  env USER="$HM_USER" nix run --refresh \
     --extra-experimental-features 'nix-command flakes' \
     home-manager/master \
     -- build --flake "${FLAKE_PATH}" "${HM_ARGS[@]}"
 else
   print_step "Running home-manager switch (${FLAKE_ATTR})"
-  exec env USER="$HM_USER" nix run \
+  exec env USER="$HM_USER" nix run --refresh \
     --extra-experimental-features 'nix-command flakes' \
     home-manager/master \
     -- switch --flake "${FLAKE_PATH}" "${HM_ARGS[@]}"
