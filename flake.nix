@@ -132,6 +132,10 @@
         ${linuxSystemX86} = {
           default = self.homeConfigurations."base-linux".activationPackage;
         };
+
+        ${linuxSystemArm} = {
+          default = self.homeConfigurations."base-linux-aarch64".activationPackage;
+        };
       };
     };
 }
