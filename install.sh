@@ -5,7 +5,8 @@ REPO_OWNER="ashwinp88"
 REPO_NAME="nix-home"
 REF="main"
 BOOTSTRAP_URL=""
-BOOTSTRAP_ARGS=()
+BOOTSTRAP_COUNT=0
+BOOTSTRAP_ARGS_ARRAY=()
 TMP_DIR=""
 
 print_step() {
@@ -49,10 +50,12 @@ while [[ $# -gt 0 ]]; do
     --)
       shift
       BOOTSTRAP_ARGS+=("$@")
+      BOOTSTRAP_COUNT=${#BOOTSTRAP_ARGS[@]}
       break
       ;;
     *)
       BOOTSTRAP_ARGS+=("$@")
+      BOOTSTRAP_COUNT=${#BOOTSTRAP_ARGS[@]}
       break
       ;;
   esac
@@ -130,8 +133,8 @@ curl -fsSL "$BOOTSTRAP_URL" -o "$TMP_DIR/bootstrap.sh"
 chmod +x "$TMP_DIR/bootstrap.sh"
 
 print_step "Running bootstrap (flake auto-detected)"
-if [[ ${#BOOTSTRAP_ARGS[@]} -gt 0 ]]; then
-  bash "$TMP_DIR/bootstrap.sh" "${BOOTSTRAP_ARGS[@]}"
+if [[ ${#BOOTSTRAP_ARGS_ARRAY[@]} -gt 0 ]]; then
+  bash "$TMP_DIR/bootstrap.sh" "${BOOTSTRAP_ARGS_ARRAY[@]}"
 else
   bash "$TMP_DIR/bootstrap.sh"
 fi
