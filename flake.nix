@@ -20,7 +20,8 @@
     let
       # Systems we support
       darwinSystem = "aarch64-darwin";  # Apple Silicon, change to x86_64-darwin for Intel
-      linuxSystem = "x86_64-linux";     # Standard Linux x86_64
+      linuxSystemX86 = "x86_64-linux";  # Standard Linux x86_64
+      linuxSystemArm = "aarch64-linux"; # ARM64 Linux (e.g. Apple Silicon Docker, cloud VMs)
 
       # Helper to create package set for a system
       pkgsFor = system: import nixpkgs {
@@ -67,7 +68,21 @@
         };
 
         "base-core-linux" = mkHomeConfig {
-          system = linuxSystem;
+          system = linuxSystemX86;
+          modules = [
+            ./modules/base/default.nix
+          ];
+        };
+
+        "base-core-linux-x86_64" = mkHomeConfig {
+          system = linuxSystemX86;
+          modules = [
+            ./modules/base/default.nix
+          ];
+        };
+
+        "base-core-linux-aarch64" = mkHomeConfig {
+          system = linuxSystemArm;
           modules = [
             ./modules/base/default.nix
           ];
@@ -84,7 +99,23 @@
 
         # Linux configuration (headless)
         "base-linux" = mkHomeConfig {
-          system = linuxSystem;
+          system = linuxSystemX86;
+          modules = [
+            ./modules/base/default.nix
+            ./modules/os/linux.nix
+          ];
+        };
+
+        "base-linux-x86_64" = mkHomeConfig {
+          system = linuxSystemX86;
+          modules = [
+            ./modules/base/default.nix
+            ./modules/os/linux.nix
+          ];
+        };
+
+        "base-linux-aarch64" = mkHomeConfig {
+          system = linuxSystemArm;
           modules = [
             ./modules/base/default.nix
             ./modules/os/linux.nix
@@ -98,7 +129,7 @@
           default = self.homeConfigurations."base-darwin".activationPackage;
         };
 
-        ${linuxSystem} = {
+        ${linuxSystemX86} = {
           default = self.homeConfigurations."base-linux".activationPackage;
         };
       };
