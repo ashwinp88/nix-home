@@ -38,7 +38,7 @@
         in if envUser != "" then envUser else throw "USER environment variable is required";
 
       # Create home manager configuration with modules
-      mkHomeConfig = { system, modules, username ? defaultUsername }:
+     mkHomeConfig = { system, modules, username ? defaultUsername }:
         let
           envHome = builtins.getEnv "HOME";
           finalHome = if envHome != "" then envHome else throw "HOME environment variable is required";
@@ -52,6 +52,18 @@
                 username = lib.mkDefault username;
                 homeDirectory = lib.mkDefault finalHome;
                 stateVersion = "24.05";
+              };
+
+              programs.bash = {
+                enable = true;
+                initExtra = ''
+                  if [ -e "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh" ]; then
+                    . "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh"
+                  fi
+                  if [ -e "$HOME/.nix-profile/etc/profile.d/home-manager.sh" ]; then
+                    . "$HOME/.nix-profile/etc/profile.d/home-manager.sh"
+                  fi
+                '';
               };
 
               # Let Home Manager manage itself
