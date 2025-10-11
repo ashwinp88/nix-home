@@ -44,6 +44,7 @@ A modular, portable Nix configuration for development environments across macOS 
 # Install via one-liner (installs Nix if needed and runs the bootstrap helper)
 curl -L https://raw.githubusercontent.com/ashwinp88/nix-home/main/install.sh | bash
 # Add --clean to drop caches first
+# Use --skip-nix-install if Nix is already present
 
 # Or clone manually
 git clone https://github.com/ashwinp88/nix-home.git ~/Code/nix-home

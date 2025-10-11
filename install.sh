@@ -8,6 +8,7 @@ BOOTSTRAP_URL=""
 BOOTSTRAP_COUNT=0
 BOOTSTRAP_ARGS_ARRAY=()
 CLEAR_CACHE=false
+SKIP_NIX_INSTALL=false
 TMP_DIR=""
 
 print_step() {
@@ -21,6 +22,7 @@ Usage: install.sh [options] [-- [bootstrap args...]]
 Options:
   --ref REF            Git ref (branch/tag/commit) to fetch (default: main)
   --bootstrap-url URL  Override the bootstrap script URL
+  --skip-nix-install   Assume Nix is already installed and skip installer
   -h, --help           Show this help message
 
 All additional arguments after `--` (or the first unrecognised flag) are
@@ -43,6 +45,10 @@ while [[ $# -gt 0 ]]; do
       [[ $# -ge 2 ]] || { echo "--bootstrap-url expects an argument" >&2; exit 1; }
       BOOTSTRAP_URL="$2"
       shift 2
+      ;;
+    --skip-nix-install)
+      SKIP_NIX_INSTALL=true
+      shift
       ;;
     --clean)
       CLEAR_CACHE=true
@@ -102,11 +108,17 @@ activate_nix() {
 }
 
 install_nix() {
-if command -v nix >/dev/null 2>&1; then
-  print_step "Nix already installed"
   activate_nix
-  return
-fi
+
+  if command -v nix >/dev/null 2>&1; then
+    print_step "Nix already installed"
+    return
+  fi
+
+  if [[ "$SKIP_NIX_INSTALL" == true ]]; then
+    echo "Nix is not available in PATH and --skip-nix-install was provided. Aborting." >&2
+    exit 1
+  fi
 
   print_step "Installing Nix (multi-user)"
   require_cmd sh "sh is required to run the Nix installer"
