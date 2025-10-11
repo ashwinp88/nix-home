@@ -1,7 +1,20 @@
+
 { config, pkgs, lib, ... }:
 
 {
-  programs.bash.enable = true;
+  programs.bash = {
+    enable = true;
+    bashrcExtra = ''
+      if [ -f "$HOME/.config/bash/local.bash" ]; then
+        . "$HOME/.config/bash/local.bash"
+      fi
+    '';
+    profileExtra = ''
+      if [ -f "$HOME/.config/bash/local.profile" ]; then
+        . "$HOME/.config/bash/local.profile"
+      fi
+    '';
+  };
 
   programs.zsh = {
     enable = true;

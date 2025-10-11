@@ -7,6 +7,7 @@ REF="main"
 BOOTSTRAP_URL=""
 BOOTSTRAP_COUNT=0
 BOOTSTRAP_ARGS_ARRAY=()
+CLEAR_CACHE=false
 TMP_DIR=""
 
 print_step() {
@@ -42,6 +43,10 @@ while [[ $# -gt 0 ]]; do
       [[ $# -ge 2 ]] || { echo "--bootstrap-url expects an argument" >&2; exit 1; }
       BOOTSTRAP_URL="$2"
       shift 2
+      ;;
+    --clean)
+      CLEAR_CACHE=true
+      shift
       ;;
     -h|--help)
       usage
@@ -97,11 +102,11 @@ activate_nix() {
 }
 
 install_nix() {
-  if command -v nix >/dev/null 2>&1; then
-    print_step "Nix already installed"
-    activate_nix
-    return
-  fi
+if command -v nix >/dev/null 2>&1; then
+  print_step "Nix already installed"
+  activate_nix
+  return
+fi
 
   print_step "Installing Nix (multi-user)"
   require_cmd sh "sh is required to run the Nix installer"
@@ -125,6 +130,13 @@ install_nix() {
 }
 
 install_nix
+
+if [[ "$CLEAR_CACHE" == true ]]; then
+  print_step "Clearing Nix caches"
+  nix-collect-garbage -d || true
+  rm -rf "$HOME/.cache/nix" || true
+  rm -rf /nix/var/nix/downloads || true
+fi
 
 TMP_DIR=$(mktemp -d)
 
@@ -151,3 +163,4 @@ if [ -f "$HOME/.nix-profile/etc/profile.d/home-manager.sh" ]; then
   . "$HOME/.nix-profile/etc/profile.d/home-manager.sh"
   set -u
 fi
+  --clean            Remove local Nix caches before running bootstrap

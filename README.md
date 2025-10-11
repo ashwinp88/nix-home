@@ -43,6 +43,7 @@ A modular, portable Nix configuration for development environments across macOS 
 ```bash
 # Install via one-liner (installs Nix if needed and runs the bootstrap helper)
 curl -L https://raw.githubusercontent.com/ashwinp88/nix-home/main/install.sh | bash
+# Add --clean to drop caches first
 
 # Or clone manually
 git clone https://github.com/ashwinp88/nix-home.git ~/Code/nix-home
@@ -57,6 +58,7 @@ cd ~/Code/nix-home
 ./scripts/bootstrap.sh --base          # apply base modules only
 ./scripts/bootstrap.sh --home /custom/home   # override HOME if needed
 # Existing ~/.zshrc is saved to ~/.zshrc.pre-nix-home and sourced from ~/.config/zsh/local.zsh
+# Existing ~/.bashrc and ~/.profile are backed up to *.pre-nix-home and sourced from ~/.config/bash/*.
 ./scripts/bootstrap.sh --home /custom/home   # override HOME if needed
 
 # Use --darwin/--linux to override detection and pass extra flags after --, e.g.
