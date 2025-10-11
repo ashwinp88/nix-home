@@ -161,8 +161,10 @@ chmod +x "$TMP_DIR/bootstrap.sh"
 print_step "Running bootstrap (flake auto-detected)"
 if [[ ${#BOOTSTRAP_ARGS_ARRAY[@]} -gt 0 ]]; then
   print_step "Forwarding args to bootstrap: ${BOOTSTRAP_ARGS_ARRAY[*]}"
+  bash "$TMP_DIR/bootstrap.sh" "${BOOTSTRAP_ARGS_ARRAY[@]}"
+else
+  bash "$TMP_DIR/bootstrap.sh"
 fi
-bash "$TMP_DIR/bootstrap.sh" "${BOOTSTRAP_ARGS_ARRAY[@]@?}"
 
 if [ -f "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh" ]; then
   print_step "Sourcing hm-session-vars.sh"
