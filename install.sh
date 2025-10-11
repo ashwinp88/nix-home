@@ -108,12 +108,11 @@ activate_nix() {
 }
 
 install_nix() {
+  export PATH="/nix/var/nix/profiles/default/bin:${PATH}"
   activate_nix
 
-  if command -v nix >/dev/null 2>&1 || [ -x /nix/var/nix/profiles/default/bin/nix ]; then
-    print_step "Nix already installed"
-    PATH="/nix/var/nix/profiles/default/bin:$PATH"
-    export PATH
+  if command -v nix >/dev/null 2>&1 || [[ -f /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]]; then
+    print_step "Detected existing Nix installation"
     activate_nix
     return
   fi
