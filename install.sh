@@ -22,6 +22,7 @@ Options:
   --ref REF            Git ref (branch/tag/commit) to fetch (default: main)
   --bootstrap-url URL  Override the bootstrap script URL
   --skip-nix-install   Assume Nix is already installed and skip installer
+  --clean              Remove local Nix caches before running bootstrap
   -h, --help           Show this help message
 
 All additional arguments after `--` (or the first unrecognised flag) are
@@ -175,4 +176,3 @@ if [ -f "$HOME/.nix-profile/etc/profile.d/home-manager.sh" ]; then
   . "$HOME/.nix-profile/etc/profile.d/home-manager.sh"
   set -u
 fi
-  --clean            Remove local Nix caches before running bootstrap
