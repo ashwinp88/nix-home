@@ -14,6 +14,10 @@
         . "$HOME/.config/bash/local.profile"
       fi
     '';
+    shellAliases = {
+      vim = "nvim";
+      vi = "nvim";
+    };
   };
 
   programs.zsh = {

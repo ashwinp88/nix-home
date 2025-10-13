@@ -2,9 +2,10 @@
 
 {
   # Linux-specific packages
-  home.packages = with pkgs; [
+  home.packages = lib.mkAfter (with pkgs; [
     docker          # Docker Engine
-  ];
+    gh              # GitHub CLI (ensure present on Linux too)
+  ]);
 
   # Linux-specific tmux configuration
   programs.tmux.extraConfig = ''
@@ -24,7 +25,6 @@
   '';
 
   # Linux-specific environment settings
-  home.sessionVariables = {
-    # Add any Linux-specific environment variables here if needed
-  };
+  # To add Linux-specific environment variables use lib.mkAfter, e.g.:
+  # home.sessionVariables = lib.mkAfter { KEY = "value"; };
 }
