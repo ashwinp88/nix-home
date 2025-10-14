@@ -8,7 +8,7 @@
         autoFetch = false;
         paging = {
           colorArg = "always";
-          pager = "delta --dark --paging=never";
+          pager = "delta --dark --paging=never --line-numbers";
         };
       };
 
