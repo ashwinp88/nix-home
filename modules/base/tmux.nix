@@ -109,9 +109,18 @@
       set -g status-justify "absolute-centre"
 
       # pane border look and feel
-      setw -g pane-active-border-style "fg=#{@thm_blue}"
-      setw -g pane-border-style "fg=#{@thm_surface_0}"
+      # setw -g pane-active-border-style "fg=#{@thm_blue}"
+      # setw -g pane-border-style "fg=#{@thm_surface_0}"
+      
+      # Set inactive pane border style
+      set -g pane-border-style "fg=colour240,bg=default"
 
+      # Set active pane border style to a prominent color
+      set -g pane-active-border-style "fg=cyan,bg=default"
+
+      # Use simple lines for borders
+      set -g pane-border-lines "simple"
+      
       # window look and feel
       # set -wg automatic-rename on
       # set -g automatic-rename-format "Window"

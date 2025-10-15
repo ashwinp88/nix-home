@@ -32,7 +32,7 @@
   xdg.configFile."ghostty/config" = {
     text = ''
       font-family = "FiraCode Nerd Font"
-      font-size = 14
+      font-size = 12
       font-thicken = true
 
       background = #1e1e2e
