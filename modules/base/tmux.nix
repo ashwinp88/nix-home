@@ -108,18 +108,14 @@
       set -g status-style "bg=#{@thm_bg}"
       set -g status-justify "absolute-centre"
 
-      # pane border look and feel
-      setw -g pane-active-border-style "bg=#{@thm_bg},fg=#{@thm_blue},bold"
-      setw -g pane-border-style "bg=#{@thm_bg},fg=#{@thm_surface_0}"
+      # pane border look and feel - clean double borders
       setw -g pane-border-lines double
+      setw -g pane-active-border-style "fg=#{@thm_blue},bold"
+      setw -g pane-border-style "fg=#{@thm_surface_0}"
 
-      # Dim inactive panes for better focus indication
-      set -g window-style 'bg=colour235'
-      set -g window-active-style 'bg=colour232'
-
-      # Hooks for pane focus changes (optional visual feedback)
-      set-hook -g pane-focus-in 'selectp -P bg=default'
-      set-hook -g pane-focus-out 'selectp -P bg=colour235'
+      # Dim inactive panes using Catppuccin theme colors
+      set -g window-style "fg=#{@thm_overlay_0},bg=#{@thm_mantle}"
+      set -g window-active-style "fg=#{@thm_text},bg=#{@thm_base}"
 
       # window look and feel
       # set -wg automatic-rename on
