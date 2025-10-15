@@ -19,8 +19,8 @@
       # Disable automatic clipboard access (we'll use explicit copy with 'y')
       set -s set-clipboard off
 
-      # Terminal overrides for proper cursor support
-      set -ga terminal-overrides ',*:Ss=\E[%p1%d q:Se=\E[2 q'
+      # Terminal overrides for proper cursor support (use vertical bar cursor)
+      set -ga terminal-overrides ',*:Ss=\E[%p1%d q:Se=\E[6 q'
       set -as terminal-features ',*:RGB'
 
       # Allow terminal to set cursor shape
@@ -108,14 +108,9 @@
       set -g status-style "bg=#{@thm_bg}"
       set -g status-justify "absolute-centre"
 
-      # pane border look and feel - clean double borders
-      setw -g pane-border-lines double
-      setw -g pane-active-border-style "fg=#{@thm_blue},bold"
+      # pane border look and feel
+      setw -g pane-active-border-style "fg=#{@thm_blue}"
       setw -g pane-border-style "fg=#{@thm_surface_0}"
-
-      # Dim inactive panes using Catppuccin theme colors
-      set -g window-style "fg=#{@thm_overlay_0},bg=#{@thm_mantle}"
-      set -g window-active-style "fg=#{@thm_text},bg=#{@thm_base}"
 
       # window look and feel
       # set -wg automatic-rename on
