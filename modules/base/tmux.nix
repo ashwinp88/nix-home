@@ -109,11 +109,10 @@
       set -g status-justify "absolute-centre"
 
       # pane border look and feel
-      setw -g pane-border-status top
-      setw -g pane-border-format ""
+      setw -g pane-border-status off
       setw -g pane-active-border-style "bg=#{@thm_bg},fg=#{@thm_blue},bold"
       setw -g pane-border-style "bg=#{@thm_bg},fg=#{@thm_surface_0}"
-      setw -g pane-border-lines single
+      setw -g pane-border-lines double
 
       # Dim inactive panes for better focus indication
       set -g window-style 'bg=colour235'
