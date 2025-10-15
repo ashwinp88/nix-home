@@ -109,7 +109,6 @@
       set -g status-justify "absolute-centre"
 
       # pane border look and feel
-      setw -g pane-border-status off
       setw -g pane-active-border-style "bg=#{@thm_bg},fg=#{@thm_blue},bold"
       setw -g pane-border-style "bg=#{@thm_bg},fg=#{@thm_surface_0}"
       setw -g pane-border-lines double
@@ -123,8 +122,8 @@
       set-hook -g pane-focus-out 'selectp -P bg=colour235'
 
       # window look and feel
-      set -wg automatic-rename on
-      set -g automatic-rename-format "Window"
+      # set -wg automatic-rename on
+      # set -g automatic-rename-format "Window"
 
       set -g window-status-format " #I#{?#{!=:#{window_name},Window},: #W,} "
       set -g window-status-style "bg=#{@thm_bg},fg=#{@thm_rosewater}"
