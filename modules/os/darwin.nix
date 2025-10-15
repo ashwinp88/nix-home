@@ -68,11 +68,8 @@
 
       scrollback-limit = 10000
 
-      audible-bell = false
-      visual-bell = false
-
-      cursor-style = block
-      cursor-blink = true
+      cursor-style = bar
+      cursor-style-blink = true
 
       copy-on-select = true
 
@@ -80,10 +77,10 @@
 
       keybind = cmd+n=new_window
       keybind = cmd+t=new_tab
-      keybind = cmd+shift+t=new_tab:current_pane_directory
+      keybind = cmd+shift+t=new_tab
       keybind = cmd+enter=toggle_fullscreen
-      keybind = cmd+d=split_right
-      keybind = cmd+shift+d=split_down
+      keybind = cmd+d=new_split:right
+      keybind = cmd+shift+d=new_split:down
       keybind = cmd+w=close_surface
       keybind = cmd+shift+[=previous_tab
       keybind = cmd+shift+]=next_tab
@@ -98,15 +95,11 @@
       keybind = cmd+9=goto_tab:9
       keybind = cmd+0=goto_tab:10
       keybind = cmd+k=clear_screen
-      keybind = cmd+shift+k=clear_scrollback
 
       macos-option-as-alt = true
       macos-non-native-fullscreen = false
       macos-titlebar-style = transparent
       macos-titlebar-proxy-icon = hidden
-
-      gpu-backend = metal
-      max-fps = 120
 
       working-directory = home
     '';
