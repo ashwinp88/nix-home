@@ -28,6 +28,9 @@ return {
       indent = {
         enable = true,
       },
+      fold = {
+        enable = true,
+      },
       ignore_install = { "python" },
       modules = {},
     })

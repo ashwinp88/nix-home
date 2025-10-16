@@ -41,6 +41,19 @@ return {
       { "<leader>u", group = "ui toggles" },
       { "<leader>x", group = "trouble" },
       { "<leader>m", group = "markdown" },
+      -- Folding commands
+      { "z", group = "fold" },
+      { "za", desc = "Toggle fold" },
+      { "zc", desc = "Close fold" },
+      { "zo", desc = "Open fold" },
+      { "zC", desc = "Close all folds recursively" },
+      { "zO", desc = "Open all folds recursively" },
+      { "zR", desc = "Open all folds in file" },
+      { "zM", desc = "Close all folds in file" },
+      { "zj", desc = "Move to next fold" },
+      { "zk", desc = "Move to previous fold" },
+      { "zd", desc = "Delete fold" },
+      { "zE", desc = "Delete all folds" },
     })
   end,
 }

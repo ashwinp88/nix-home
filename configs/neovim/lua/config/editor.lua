@@ -68,5 +68,14 @@ vim.diagnostic.config({
 	},
 })
 
+-- Folding settings (using treesitter)
+vim.opt.foldmethod = "expr"
+vim.opt.foldexpr = "v:lua.vim.treesitter.foldexpr()"
+vim.opt.foldcolumn = "1"       -- Show fold column
+vim.opt.foldlevel = 99         -- Open all folds by default
+vim.opt.foldlevelstart = 99    -- Open all folds when opening a file
+vim.opt.foldenable = true      -- Enable folding
+vim.opt.foldtext = ""          -- Use treesitter for fold text (neovim 0.10+)
+
 -- Save file with Ctrl-S
 vim.keymap.set({ "n", "i", "v" }, "<C-s>", "<cmd>write<cr>", { desc = "Save File" })
