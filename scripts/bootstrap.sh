@@ -15,6 +15,7 @@ Options:
   --base           Use the base modules only (skip OS-specific extras).
   --prepare-only   Prepare configuration and run `home-manager build`.
   --flake REF      Override the flake reference (default: local repo or github:ashwinp88/nix-home).
+  --flake-file FILE  Flake filename to use (flake.nix or flake-lazyvim.nix).
   --arch ARCH      Override Linux architecture detection (x86_64, aarch64).
   --home PATH      Override HOME environment passed to the flake (required if HOME is unset).
   -h, --help       Show this help message.
@@ -29,6 +30,7 @@ TARGET_ARCH=""
 BASE_ONLY="false"
 PREPARE_ONLY="false"
 FLAKE_BASE=""
+FLAKE_FILE="${FLAKE_FILE:-flake.nix}"  # Default to vanilla, can be set by install.sh
 OVERRIDE_HOME=""
 HM_ARGS=()
 
@@ -39,8 +41,13 @@ else
   REPO_DIR="$SCRIPT_DIR"
 fi
 DEFAULT_FLAKE_BASE="$REPO_DIR"
-if [[ ! -f "${REPO_DIR}/flake.nix" ]]; then
+# Check if the selected flake file exists locally, otherwise use GitHub
+if [[ ! -f "${REPO_DIR}/${FLAKE_FILE}" ]]; then
   DEFAULT_FLAKE_BASE="github:ashwinp88/nix-home"
+  # For LazyVim flake from GitHub, need special handling
+  if [[ "$FLAKE_FILE" == "flake-lazyvim.nix" ]]; then
+    DEFAULT_FLAKE_BASE="github:ashwinp88/nix-home?dir=."
+  fi
 fi
 
 if [[ -z "${USER:-}" ]]; then
@@ -69,6 +76,11 @@ while [[ $# -gt 0 ]]; do
     --flake)
       [[ $# -ge 2 ]] || { echo "--flake expects an argument" >&2; exit 1; }
       FLAKE_BASE="$2"
+      shift 2
+      ;;
+    --flake-file)
+      [[ $# -ge 2 ]] || { echo "--flake-file expects an argument" >&2; exit 1; }
+      FLAKE_FILE="$2"
       shift 2
       ;;
     --arch)
@@ -163,6 +175,11 @@ fi
 
 if [[ -z "$FLAKE_BASE" ]]; then
   FLAKE_BASE="$DEFAULT_FLAKE_BASE"
+fi
+
+# For local flakes, append the flake file if not default
+if [[ "$FLAKE_BASE" == "$REPO_DIR" && "$FLAKE_FILE" != "flake.nix" ]]; then
+  FLAKE_BASE="${FLAKE_BASE}/${FLAKE_FILE}"
 fi
 
 FLAKE_ATTR="$(attr_for_system "$TARGET_SYSTEM" "$BASE_ONLY" "$TARGET_ARCH")"
