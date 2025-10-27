@@ -1,5 +1,5 @@
 {
-  description = "Ashwin's Personal Base Nix Configuration";
+  description = "Ashwin's Personal Base Nix Configuration (LazyVim)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -78,28 +78,28 @@
         "base-core-darwin" = mkHomeConfig {
           system = darwinSystem;
           modules = [
-            ./modules/base/default.nix
+            ../modules/base-lazyvim/default.nix
           ];
         };
 
         "base-core-linux" = mkHomeConfig {
           system = linuxSystemX86;
           modules = [
-            ./modules/base/default.nix
+            ../modules/base-lazyvim/default.nix
           ];
         };
 
         "base-core-linux-x86_64" = mkHomeConfig {
           system = linuxSystemX86;
           modules = [
-            ./modules/base/default.nix
+            ../modules/base-lazyvim/default.nix
           ];
         };
 
         "base-core-linux-aarch64" = mkHomeConfig {
           system = linuxSystemArm;
           modules = [
-            ./modules/base/default.nix
+            ../modules/base-lazyvim/default.nix
           ];
         };
 
@@ -107,8 +107,8 @@
         "base-darwin" = mkHomeConfig {
           system = darwinSystem;
           modules = [
-            ./modules/base/default.nix
-            ./modules/os/darwin.nix
+            ../modules/base-lazyvim/default.nix
+            ../modules/os/darwin.nix
           ];
         };
 
@@ -116,24 +116,24 @@
         "base-linux" = mkHomeConfig {
           system = linuxSystemX86;
           modules = [
-            ./modules/base/default.nix
-            ./modules/os/linux.nix
+            ../modules/base-lazyvim/default.nix
+            ../modules/os/linux.nix
           ];
         };
 
         "base-linux-x86_64" = mkHomeConfig {
           system = linuxSystemX86;
           modules = [
-            ./modules/base/default.nix
-            ./modules/os/linux.nix
+            ../modules/base-lazyvim/default.nix
+            ../modules/os/linux.nix
           ];
         };
 
         "base-linux-aarch64" = mkHomeConfig {
           system = linuxSystemArm;
           modules = [
-            ./modules/base/default.nix
-            ./modules/os/linux.nix
+            ../modules/base-lazyvim/default.nix
+            ../modules/os/linux.nix
           ];
         };
       };

@@ -11,34 +11,28 @@
     withPython3 = true;
     withNodeJs = true;
 
-    # Extra packages available to Neovim
+    # Minimal packages - LazyVim's Mason handles most LSPs
     extraPackages = with pkgs; [
-      # Language servers
-      lua-language-server
-      nil  # Nix LSP
-      nodePackages.typescript-language-server
-      nodePackages.vscode-langservers-extracted  # HTML, CSS, JSON, ESLint
-
-      # Formatters and linters
+      # Formatters and linters (not managed by Mason)
       stylua
       nixfmt-rfc-style
       nodePackages.prettier
 
-      # Essential tools
+      # Essential tools (always needed)
       tree-sitter
       ripgrep
       fd
       git
 
-      # For yanky.nvim
+      # For yanky.nvim and snacks.nvim
       sqlite
     ];
   };
 
-  # Copy the base Neovim configuration
+  # Copy the LazyVim Neovim configuration
   # Ruby-specific plugins are added by the Ruby module
   xdg.configFile."nvim" = {
-    source = ../../configs/neovim;
+    source = ../../configs/neovim-lazyvim;
     recursive = true;
   };
 }

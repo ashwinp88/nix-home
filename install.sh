@@ -9,10 +9,7 @@ BOOTSTRAP_ARGS=()
 CLEAR_CACHE=false
 SKIP_NIX_INSTALL=false
 TMP_DIR=""
-
-# Neovim configuration options
-NVIM_USE_LAZYVIM="${NVIM_USE_LAZYVIM:-false}"
-NVIM_COLORSCHEME="${NVIM_COLORSCHEME:-catppuccin}"
+FLAKE_SUBDIR=""  # Default to root (vanilla), or "lazyvim" for LazyVim
 
 print_step() {
   printf '\n==> %s\n' "$1"
@@ -29,24 +26,17 @@ Options:
   --clean              Remove local Nix caches before running bootstrap
   --lazyvim            Use LazyVim distribution (default: custom config)
   --custom             Use custom lazy.nvim config (default)
-  --theme THEME        Set colorscheme (catppuccin, tokyonight, gruvbox, nord)
   -h, --help           Show this help message
 
 All additional arguments after `--` (or the first unrecognised flag) are
 forwarded to `scripts/bootstrap.sh`.
 
 Examples:
-  # Default (custom config with catppuccin)
+  # Default (custom config)
   curl -L https://raw.githubusercontent.com/ashwinp88/nix-home/main/install.sh | bash
 
-  # LazyVim with default theme
+  # LazyVim
   curl -L .../install.sh | bash -s -- --lazyvim
-
-  # LazyVim with gruvbox
-  curl -L .../install.sh | bash -s -- --lazyvim --theme gruvbox
-
-  # Custom config with tokyonight
-  curl -L .../install.sh | bash -s -- --theme tokyonight
 USAGE
 }
 
@@ -71,17 +61,12 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --lazyvim)
-      NVIM_USE_LAZYVIM="true"
+      FLAKE_SUBDIR="lazyvim"
       shift
       ;;
     --custom)
-      NVIM_USE_LAZYVIM="false"
+      FLAKE_SUBDIR=""
       shift
-      ;;
-    --theme)
-      [[ $# -ge 2 ]] || { echo "--theme expects an argument" >&2; exit 1; }
-      NVIM_COLORSCHEME="$2"
-      shift 2
       ;;
     -h|--help)
       usage
@@ -102,6 +87,9 @@ while [[ $# -gt 0 ]]; do
 if [[ -z "$BOOTSTRAP_URL" ]]; then
   BOOTSTRAP_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REF}/scripts/bootstrap.sh"
 fi
+
+# Export flake subdirectory for bootstrap
+export FLAKE_SUBDIR
 
 cleanup() {
   if [[ -n "$TMP_DIR" && -d "$TMP_DIR" ]]; then
@@ -185,15 +173,11 @@ print_step "Downloading bootstrap helper"
 curl -fsSL "$BOOTSTRAP_URL" -o "$TMP_DIR/bootstrap.sh"
 chmod +x "$TMP_DIR/bootstrap.sh"
 
-# Export Neovim configuration environment variables
-export NVIM_USE_LAZYVIM
-export NVIM_COLORSCHEME
-
 print_step "Neovim Configuration"
-echo "  Config: $([ "$NVIM_USE_LAZYVIM" == "true" ] && echo "LazyVim" || echo "Custom")"
-echo "  Theme:  $NVIM_COLORSCHEME"
+echo "  Config: $([ "$FLAKE_SUBDIR" == "lazyvim" ] && echo "LazyVim" || echo "Custom")"
+echo "  Flake:  $([ -z "$FLAKE_SUBDIR" ] && echo "flake.nix (root)" || echo "lazyvim/flake.nix")"
 
-print_step "Running bootstrap (flake auto-detected)"
+print_step "Running bootstrap"
 if [[ ${#BOOTSTRAP_ARGS[@]} -gt 0 ]]; then
   print_step "Forwarding args to bootstrap: ${BOOTSTRAP_ARGS[*]}"
   bash "$TMP_DIR/bootstrap.sh" "${BOOTSTRAP_ARGS[@]}"

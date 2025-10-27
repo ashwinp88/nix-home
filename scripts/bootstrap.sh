@@ -29,6 +29,7 @@ TARGET_ARCH=""
 BASE_ONLY="false"
 PREPARE_ONLY="false"
 FLAKE_BASE=""
+FLAKE_SUBDIR="${FLAKE_SUBDIR:-}"  # Default to root (vanilla), or "lazyvim" for LazyVim
 OVERRIDE_HOME=""
 HM_ARGS=()
 
@@ -39,6 +40,7 @@ else
   REPO_DIR="$SCRIPT_DIR"
 fi
 DEFAULT_FLAKE_BASE="$REPO_DIR"
+# Check if we're running locally or need to use GitHub
 if [[ ! -f "${REPO_DIR}/flake.nix" ]]; then
   DEFAULT_FLAKE_BASE="github:ashwinp88/nix-home"
 fi
@@ -163,6 +165,11 @@ fi
 
 if [[ -z "$FLAKE_BASE" ]]; then
   FLAKE_BASE="$DEFAULT_FLAKE_BASE"
+fi
+
+# Append subdirectory if specified
+if [[ -n "$FLAKE_SUBDIR" ]]; then
+  FLAKE_BASE="${FLAKE_BASE}/${FLAKE_SUBDIR}"
 fi
 
 FLAKE_ATTR="$(attr_for_system "$TARGET_SYSTEM" "$BASE_ONLY" "$TARGET_ARCH")"
