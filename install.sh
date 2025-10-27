@@ -10,6 +10,10 @@ CLEAR_CACHE=false
 SKIP_NIX_INSTALL=false
 TMP_DIR=""
 
+# Neovim configuration options
+NVIM_USE_LAZYVIM="${NVIM_USE_LAZYVIM:-false}"
+NVIM_COLORSCHEME="${NVIM_COLORSCHEME:-catppuccin}"
+
 print_step() {
   printf '\n==> %s\n' "$1"
 }
@@ -23,14 +27,26 @@ Options:
   --bootstrap-url URL  Override the bootstrap script URL
   --skip-nix-install   Assume Nix is already installed and skip installer
   --clean              Remove local Nix caches before running bootstrap
+  --lazyvim            Use LazyVim distribution (default: custom config)
+  --custom             Use custom lazy.nvim config (default)
+  --theme THEME        Set colorscheme (catppuccin, tokyonight, gruvbox, nord)
   -h, --help           Show this help message
 
 All additional arguments after `--` (or the first unrecognised flag) are
 forwarded to `scripts/bootstrap.sh`.
 
 Examples:
+  # Default (custom config with catppuccin)
   curl -L https://raw.githubusercontent.com/ashwinp88/nix-home/main/install.sh | bash
-  curl -L .../install.sh | bash -s -- --prepare-only
+
+  # LazyVim with default theme
+  curl -L .../install.sh | bash -s -- --lazyvim
+
+  # LazyVim with gruvbox
+  curl -L .../install.sh | bash -s -- --lazyvim --theme gruvbox
+
+  # Custom config with tokyonight
+  curl -L .../install.sh | bash -s -- --theme tokyonight
 USAGE
 }
 
@@ -53,6 +69,19 @@ while [[ $# -gt 0 ]]; do
     --clean)
       CLEAR_CACHE=true
       shift
+      ;;
+    --lazyvim)
+      NVIM_USE_LAZYVIM="true"
+      shift
+      ;;
+    --custom)
+      NVIM_USE_LAZYVIM="false"
+      shift
+      ;;
+    --theme)
+      [[ $# -ge 2 ]] || { echo "--theme expects an argument" >&2; exit 1; }
+      NVIM_COLORSCHEME="$2"
+      shift 2
       ;;
     -h|--help)
       usage
@@ -155,6 +184,14 @@ TMP_DIR=$(mktemp -d)
 print_step "Downloading bootstrap helper"
 curl -fsSL "$BOOTSTRAP_URL" -o "$TMP_DIR/bootstrap.sh"
 chmod +x "$TMP_DIR/bootstrap.sh"
+
+# Export Neovim configuration environment variables
+export NVIM_USE_LAZYVIM
+export NVIM_COLORSCHEME
+
+print_step "Neovim Configuration"
+echo "  Config: $([ "$NVIM_USE_LAZYVIM" == "true" ] && echo "LazyVim" || echo "Custom")"
+echo "  Theme:  $NVIM_COLORSCHEME"
 
 print_step "Running bootstrap (flake auto-detected)"
 if [[ ${#BOOTSTRAP_ARGS[@]} -gt 0 ]]; then
