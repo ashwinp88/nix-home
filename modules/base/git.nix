@@ -3,10 +3,14 @@
 {
   programs.git = {
     enable = true;
-    userName = "Ashwin Purushotaman";
-    userEmail = "ashwin.p88@gmail.com";
 
-    extraConfig = {
+    # Use new settings format
+    settings = {
+      user = {
+        name = "Ashwin Purushotaman";
+        email = "ashwin.p88@gmail.com";
+      };
+
       init.defaultBranch = "main";
       push.autoSetupRemote = true;
       pull.rebase = true;
@@ -33,18 +37,18 @@
       credential."https://github.com" = {
         helper = "!gh auth git-credential";
       };
-    };
 
-    # Git aliases
-    aliases = {
-      st = "status -sb";
-      co = "checkout";
-      br = "branch";
-      ci = "commit";
-      unstage = "reset HEAD --";
-      last = "log -1 HEAD";
-      lg = "log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit";
-      amend = "commit --amend --no-edit";
+      # Git aliases
+      alias = {
+        st = "status -sb";
+        co = "checkout";
+        br = "branch";
+        ci = "commit";
+        unstage = "reset HEAD --";
+        last = "log -1 HEAD";
+        lg = "log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit";
+        amend = "commit --amend --no-edit";
+      };
     };
   };
 }
