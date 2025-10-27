@@ -35,7 +35,11 @@
       font-size = 12
       font-thicken = true
 
+      # Background with opacity and blur
       background = #1e1e2e
+      background-opacity = 0.85
+      background-blur-radius = 20
+
       foreground = #cdd6f4
 
       palette = 0=#45475a
@@ -100,6 +104,9 @@
       macos-non-native-fullscreen = false
       macos-titlebar-style = transparent
       macos-titlebar-proxy-icon = hidden
+
+      # Spooky pumpkin background
+      background-image = https://get.pxhere.com/photo/night-fall-spooky-orange-autumn-pumpkin-halloween-darkness-circle-jack-o-lantern-scary-holidays-seasonal-lanterns-carving-or-decorations-traditional-pumpkins-trick-treat-macro-photography-computer-wallpaper-456664.jpg
 
       working-directory = home
     '';
