@@ -10,8 +10,8 @@ return {
       diagnostics = "nvim_lsp",
       offsets = {
         {
-          filetype = "snacks_explorer",  -- Adjust for snacks.explorer
-          text = "File Explorer",
+          filetype = "snacks_picker_list",  -- snacks.explorer uses picker infrastructure
+          text = "Explorer",
           text_align = "center",
           separator = true,
         },
