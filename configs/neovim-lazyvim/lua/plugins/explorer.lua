@@ -11,6 +11,8 @@ return {
     opts = {
       explorer = {
         enabled = true,
+        focus_on_open = true,  -- Focus when opening
+        follow = true,         -- Highlight currently open file
       },
     },
     keys = {

@@ -3,6 +3,9 @@
 
 -- Custom editor settings (ported from custom config)
 
+-- Disable relative line numbers (use absolute)
+vim.opt.relativenumber = false
+
 -- Folding settings (using treesitter)
 vim.opt.foldmethod = "expr"
 vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
