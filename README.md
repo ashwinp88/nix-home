@@ -2,6 +2,31 @@
 
 A modular, portable Nix configuration for development environments across macOS and Linux.
 
+## Two Flavors Available
+
+This repository provides **two independent Neovim configurations** to choose from:
+
+### 🔧 Vanilla (Default)
+Custom lazy.nvim configuration with hand-picked plugins and complete control.
+- **Explorer**: Neo-tree with multi-source support (files, buffers, git, symbols)
+- **Finder**: Snacks.picker for fuzzy finding
+- **LSPs**: All managed via Nix packages
+- **Full control**: Every plugin explicitly configured
+
+### 🚀 LazyVim
+LazyVim distribution with minimal overrides for best-practice defaults.
+- **Explorer**: Snacks.explorer (lightweight file tree)
+- **Finder**: Snacks.picker (same as vanilla)
+- **LSPs**: Mason auto-installs most LSPs, Ruby/Sorbet via Nix
+- **Less config**: Leverages LazyVim's excellent defaults
+- **Easy updates**: Stay current with LazyVim releases
+
+**Both configurations:**
+- Share the same core tools and environment
+- Work with Shopify Ruby overlay for shadowenv LSP support
+- Support runtime colorscheme switching
+- Are fully tested and production-ready
+
 ## Features
 
 ### Core Tools (Always Available)
@@ -38,33 +63,59 @@ A modular, portable Nix configuration for development environments across macOS 
 
 ## Quick Start
 
-### Installation
+### One-Shot Installation (Recommended)
 
+**Vanilla (Custom lazy.nvim):**
 ```bash
-# Install via one-liner (installs Nix if needed and runs the bootstrap helper)
 curl -L https://raw.githubusercontent.com/ashwinp88/nix-home/main/install.sh | bash
-# Add --clean to drop caches first
-# Use --skip-nix-install if Nix is already present
+```
 
-# Or clone manually
+**LazyVim:**
+```bash
+curl -L https://raw.githubusercontent.com/ashwinp88/nix-home/main/install.sh | bash -s -- --lazyvim
+```
+
+The install script will:
+1. Install Nix (if not present)
+2. Enable flakes and nix-command
+3. Run home-manager switch
+4. Backup existing dotfiles (`.zshrc`, `.bashrc`, `.profile`)
+
+**Options:**
+- `--clean`: Remove Nix caches first
+- `--skip-nix-install`: Assume Nix is already installed
+- `--lazyvim`: Use LazyVim configuration (default: vanilla)
+- `--custom`: Explicitly use vanilla configuration
+
+### Manual Installation (Local Development)
+
+**Clone and switch:**
+```bash
 git clone https://github.com/ashwinp88/nix-home.git ~/Code/nix-home
 cd ~/Code/nix-home
 
-# Install Nix (multi-user) from https://nixos.org/download.html first if you
-# skip the one-liner. Then run the bootstrap helper; it detects the OS
-# automatically and enables flakes/nix-command before invoking Home Manager.
+# Vanilla configuration
+home-manager switch --impure --flake .#base-darwin
 
-./scripts/bootstrap.sh                 # auto-detects macOS/Linux
-./scripts/bootstrap.sh --prepare-only  # just build (no switch)
-./scripts/bootstrap.sh --base          # apply base modules only
-./scripts/bootstrap.sh --home /custom/home   # override HOME if needed
-# Existing ~/.zshrc is saved to ~/.zshrc.pre-nix-home and sourced from ~/.config/zsh/local.zsh
-# Existing ~/.bashrc and ~/.profile are backed up to *.pre-nix-home and sourced from ~/.config/bash/*.
-./scripts/bootstrap.sh --home /custom/home   # override HOME if needed
+# LazyVim configuration
+home-manager switch --impure --flake ./lazyvim#base-darwin
+```
+
+**Bootstrap script (auto-detects OS):**
+```bash
+./scripts/bootstrap.sh                 # Vanilla (auto-detects macOS/Linux)
+./scripts/bootstrap.sh --prepare-only  # Just build (no switch)
+./scripts/bootstrap.sh --base          # Base modules only
+./scripts/bootstrap.sh --home /custom/home   # Override HOME
 
 # Use --darwin/--linux to override detection and pass extra flags after --, e.g.
 ./scripts/bootstrap.sh -- --show-trace
 ```
+
+**Note:** Existing dotfiles are automatically backed up:
+- `.zshrc` → `.zshrc.pre-nix-home` (sourced from `~/.config/zsh/local.zsh`)
+- `.bashrc` → `.bashrc.pre-nix-home` (sourced from `~/.config/bash/local.bash`)
+- `.profile` → `.profile.pre-nix-home` (sourced from `~/.config/bash/local.profile`)
 
 ### First-Time Setup
 
@@ -115,27 +166,72 @@ Optimized configuration for headless Linux servers.
 
 ```
 nix-home/
-├── flake.nix                     # Main flake definition
-├── flake.lock                    # Locked dependencies
+├── flake.nix                     # Vanilla configuration flake
+├── flake.lock                    # Locked dependencies (vanilla)
+├── lazyvim/
+│   ├── flake.nix                 # LazyVim configuration flake
+│   └── flake.lock                # Locked dependencies (LazyVim)
+├── install.sh                    # One-shot installer with --lazyvim flag
+├── test-sandbox.sh               # Sandbox testing script
 ├── modules/
-│   ├── base/                     # OS-agnostic base modules
-│   │   ├── default.nix           # Imports all base modules
+│   ├── base/                     # Vanilla base modules
+│   │   ├── default.nix           # Imports all vanilla modules
+│   │   ├── neovim.nix            # Vanilla neovim (full LSP packages)
 │   │   ├── packages.nix          # Core packages (JDK, Node, tools)
-│   │   ├── tmux.nix              # Tmux configuration (OS-agnostic)
-│   │   ├── neovim.nix            # Neovim setup
+│   │   ├── tmux.nix              # Tmux configuration
 │   │   ├── shell.nix             # Zsh, oh-my-zsh, custom config
-│   │   └── git.nix               # Git configuration
-│   └── os/                       # OS-specific modules
+│   │   ├── git.nix               # Git configuration
+│   │   └── lazygit.nix           # Lazygit configuration
+│   ├── base-lazyvim/             # LazyVim base modules
+│   │   ├── default.nix           # Imports all LazyVim modules
+│   │   └── neovim-lazyvim.nix    # LazyVim neovim (minimal LSPs, Mason handles rest)
+│   └── os/                       # OS-specific modules (shared by both)
 │       ├── darwin.nix            # macOS: fonts, Ghostty, clipboard
 │       └── linux.nix             # Linux: Docker, tmux buffer clipboard
-└── configs/
-    └── neovim/                   # Neovim Lua configuration
-        ├── init.lua              # Bootstrap lazy.nvim
-        ├── lua/
-        │   ├── config/           # Editor settings, keymaps
-        │   └── plugins/          # Base plugins (no language-specific)
-        └── commands/             # Custom commands
+├── configs/
+│   ├── neovim/                   # Vanilla Neovim configuration
+│   │   ├── init.lua              # Bootstrap lazy.nvim
+│   │   ├── lua/
+│   │   │   ├── config/           # Editor settings, keymaps
+│   │   │   └── plugins/          # Complete plugin set
+│   │   │       ├── neo-tree.lua  # File explorer
+│   │   │       ├── snacks.lua    # Snacks.nvim features
+│   │   │       ├── completion.lua
+│   │   │       └── ...
+│   │   └── commands/             # Custom commands
+│   └── neovim-lazyvim/           # LazyVim minimal overrides
+│       ├── init.lua              # LazyVim bootstrap
+│       ├── lua/
+│       │   ├── config/           # Custom options, keymaps, autocmds
+│       │   └── plugins/          # Minimal overrides only
+│       │       ├── lsp.lua       # Disable Mason for Ruby/Sorbet
+│       │       ├── telescope.lua # Disable (using snacks.picker)
+│       │       ├── explorer.lua  # Enable snacks.explorer
+│       │       ├── yanky.lua     # Not in LazyVim, add it
+│       │       └── ...
+└── scripts/
+    └── bootstrap.sh              # Bootstrap helper
 ```
+
+### Architecture Principles
+
+**Vanilla Config:**
+- Complete, standalone configuration
+- Every plugin explicitly configured
+- All LSPs managed via Nix packages
+- Full control over all settings
+
+**LazyVim Config:**
+- Minimal override approach
+- Leverages LazyVim's built-in configurations
+- Only overrides what's necessary (LSP, explorer, custom plugins)
+- Mason manages most LSPs automatically (except Ruby/Sorbet)
+
+**Separation of Concerns:**
+- Two independent flakes, two independent configs
+- No shared state, no conflicts
+- Choose at install time or switch anytime
+- Both can be extended via overlay flakes (e.g., Shopify-specific tools)
 
 ## Customization
 
@@ -157,12 +253,52 @@ Edit `modules/base/shell.nix`:
 - Add custom aliases
 - Modify shell initialization
 
+### Switching Between Vanilla and LazyVim
+
+**Locally:**
+```bash
+cd ~/Code/nix-home
+
+# Switch to Vanilla
+home-manager switch --impure --flake .#base-darwin
+
+# Switch to LazyVim
+home-manager switch --impure --flake ./lazyvim#base-darwin
+
+# Changes take effect immediately (restart nvim)
+```
+
+**For overlay flakes** (like Shopify config):
+```nix
+# In ~/.config/your-work-config/flake.nix
+
+# Use vanilla
+inputs.nix-home.url = "github:ashwinp88/nix-home";
+
+# Use LazyVim
+inputs.nix-home.url = "github:ashwinp88/nix-home?dir=lazyvim";
+```
+
 ### Customizing Neovim
 
-Base Neovim plugins are in `configs/neovim/lua/plugins/`. Each plugin is self-contained and can be:
+**Vanilla:** Plugins are in `configs/neovim/lua/plugins/`. Each plugin is self-contained and can be:
 - Modified directly
 - Removed (just delete the file)
 - Added (create new plugin file)
+
+**LazyVim:** Only create override files in `configs/neovim-lazyvim/lua/plugins/` for:
+- Plugins not in LazyVim (e.g., yanky.lua, gitlinker.lua)
+- Specific settings to override (e.g., conform.lua for auto-format)
+- Disabling built-ins (e.g., telescope.lua to use snacks.picker)
+- LazyVim's built-ins handle most configuration automatically
+
+**Colorscheme switching (both configs):**
+Switch at runtime inside nvim - LazyVim persists your choice automatically:
+```vim
+:colorscheme catppuccin
+:colorscheme tokyonight
+:colorscheme gruvbox
+```
 
 ### Customizing Tmux
 
@@ -172,7 +308,7 @@ Edit `modules/base/tmux.nix` for global settings, or `modules/os/darwin.nix` / `
 
 This configuration is designed to be extended via Nix flake composition. See the "Extending" section below for how to create an overlay flake that adds language-specific tools while keeping this base clean.
 
-### Example: Adding Language-Specific Tools
+### Example: Adding Language-Specific Tools (Overlay Flakes)
 
 You can create a separate flake that references this one:
 
@@ -180,42 +316,85 @@ You can create a separate flake that references this one:
 # In your work/project flake.nix
 {
   inputs = {
-    nix-home.url = "github:ashwinp88/nix-home";
+    # Choose vanilla or LazyVim
+    nix-home.url = "github:ashwinp88/nix-home";        # Vanilla
+    # nix-home.url = "github:ashwinp88/nix-home?dir=lazyvim";  # LazyVim
+
     nixpkgs.follows = "nix-home/nixpkgs";
     home-manager.follows = "nix-home/home-manager";
   };
 
-  outputs = { self, nix-home, home-manager, ... }: {
-    homeConfigurations.work-env =
-      home-manager.lib.homeManagerConfiguration {
-        pkgs = nix-home.inputs.nixpkgs.legacyPackages.aarch64-darwin;
+  outputs = { self, nix-home, home-manager, nixpkgs, ... }:
+    let
+      system = "aarch64-darwin";
+      pkgs = nixpkgs.legacyPackages.${system};
+    in {
+      homeConfigurations."work-darwin" = home-manager.lib.homeManagerConfiguration {
+        inherit pkgs;
+
         modules = [
-          nix-home.homeConfigurations.base-darwin.config
+          # Import base modules from nix-home
+          "${nix-home.outPath}/modules/base"           # For vanilla
+          # "${nix-home.outPath}/modules/base-lazyvim" # For LazyVim
+          "${nix-home.outPath}/modules/os/darwin.nix"
+
+          # Add work-specific overlays
+          ./modules/work-ruby.nix
+          ./modules/work-dev.nix
+
+          # Override settings
           {
-            # Add language-specific Neovim plugins
+            home = {
+              username = "ashwin";
+              homeDirectory = "/Users/ashwin";
+              stateVersion = "24.05";
+            };
+
+            # Add Ruby LSP plugins (works with both vanilla and LazyVim)
             xdg.configFile."nvim/lua/plugins/ruby-lsp.lua".source = ./ruby-lsp.lua;
+            xdg.configFile."nvim/lua/plugins/ruby-dap.lua".source = ./ruby-dap.lua;
 
             # Override git email for work
-            programs.git.userEmail = lib.mkForce "work@company.com";
+            programs.git.settings.user.email = lib.mkForce "work@company.com";
 
-            # Add work-specific environment
-            programs.zsh.initContent = lib.mkAfter ''
-              [ -f /opt/work/setup.sh ] && source /opt/work/setup.sh
-            '';
+            programs.home-manager.enable = true;
           }
         ];
+
+        extraSpecialArgs = { inherit system; };
       };
-  };
+    };
 }
 ```
 
-This pattern allows you to:
+**This pattern allows you to:**
 - Keep your base configuration clean and portable
 - Add work/project-specific tools in separate repositories
 - Share the base configuration across multiple machines
 - Maintain different environments (personal, work, etc.)
+- Choose vanilla or LazyVim as the foundation
+- Ruby/language-specific plugins work with both configurations
 
 ## Key Design Decisions
+
+### Why Two Neovim Configurations?
+
+**Choose Vanilla if you:**
+- Want complete control over every plugin and setting
+- Prefer explicit configuration you can read and understand
+- Want all LSPs managed via Nix (reproducible)
+- Like Neo-tree's multi-source explorer (files, buffers, git, symbols)
+- Enjoy hand-crafting your editor configuration
+
+**Choose LazyVim if you:**
+- Want best-practice defaults out of the box
+- Prefer less configuration maintenance
+- Don't mind Mason managing LSP installations
+- Want to stay current with LazyVim releases easily
+- Like the simpler snacks.explorer
+- Want to focus on coding, not configuring
+
+**Both are production-ready** and fully supported. The architecture allows switching between them anytime.
 
 ### Why JDK and Node in Base?
 These are fundamental development tools needed across many projects. Having them always available simplifies development setup.
