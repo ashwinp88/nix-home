@@ -33,15 +33,12 @@
         };
       };
 
-      defaultUsername =
-        let envUser = builtins.getEnv "USER";
-        in if envUser != "" then envUser else throw "USER environment variable is required";
-
       # Create home manager configuration with modules
-     mkHomeConfig = { system, modules, username ? defaultUsername }:
+     mkHomeConfig = { system, modules }:
         let
-          envHome = builtins.getEnv "HOME";
-          finalHome = if envHome != "" then envHome else throw "HOME environment variable is required";
+          # Read from environment (requires --impure)
+          username = builtins.getEnv "USER";
+          homeDirectory = builtins.getEnv "HOME";
         in
         home-manager.lib.homeManagerConfiguration {
           pkgs = pkgsFor system;
@@ -49,8 +46,8 @@
           modules = modules ++ [
             {
               home = {
-                username = lib.mkDefault username;
-                homeDirectory = lib.mkDefault finalHome;
+                username = if username != "" then username else throw "USER environment variable is required";
+                homeDirectory = if homeDirectory != "" then homeDirectory else throw "HOME environment variable is required";
                 stateVersion = "24.05";
               };
 
@@ -72,7 +69,7 @@
           ];
 
           extraSpecialArgs = {
-            inherit system username;
+            inherit system;
           };
         };
     in

@@ -9,7 +9,7 @@ BOOTSTRAP_ARGS=()
 CLEAR_CACHE=false
 SKIP_NIX_INSTALL=false
 TMP_DIR=""
-FLAKE_FILE="flake.nix"  # Default to vanilla
+FLAKE_SUBDIR=""  # Default to root (vanilla), or "lazyvim" for LazyVim
 
 print_step() {
   printf '\n==> %s\n' "$1"
@@ -61,11 +61,11 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --lazyvim)
-      FLAKE_FILE="flake-lazyvim.nix"
+      FLAKE_SUBDIR="lazyvim"
       shift
       ;;
     --custom)
-      FLAKE_FILE="flake.nix"
+      FLAKE_SUBDIR=""
       shift
       ;;
     -h|--help)
@@ -88,8 +88,8 @@ if [[ -z "$BOOTSTRAP_URL" ]]; then
   BOOTSTRAP_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REF}/scripts/bootstrap.sh"
 fi
 
-# Export flake file selection for bootstrap
-export FLAKE_FILE
+# Export flake subdirectory for bootstrap
+export FLAKE_SUBDIR
 
 cleanup() {
   if [[ -n "$TMP_DIR" && -d "$TMP_DIR" ]]; then
@@ -174,15 +174,15 @@ curl -fsSL "$BOOTSTRAP_URL" -o "$TMP_DIR/bootstrap.sh"
 chmod +x "$TMP_DIR/bootstrap.sh"
 
 print_step "Neovim Configuration"
-echo "  Config: $([ "$FLAKE_FILE" == "flake-lazyvim.nix" ] && echo "LazyVim" || echo "Custom")"
-echo "  Flake:  $FLAKE_FILE"
+echo "  Config: $([ "$FLAKE_SUBDIR" == "lazyvim" ] && echo "LazyVim" || echo "Custom")"
+echo "  Flake:  $([ -z "$FLAKE_SUBDIR" ] && echo "flake.nix (root)" || echo "lazyvim/flake.nix")"
 
-print_step "Running bootstrap (flake: $FLAKE_FILE)"
+print_step "Running bootstrap"
 if [[ ${#BOOTSTRAP_ARGS[@]} -gt 0 ]]; then
   print_step "Forwarding args to bootstrap: ${BOOTSTRAP_ARGS[*]}"
-  bash "$TMP_DIR/bootstrap.sh" --flake-file "$FLAKE_FILE" "${BOOTSTRAP_ARGS[@]}"
+  bash "$TMP_DIR/bootstrap.sh" "${BOOTSTRAP_ARGS[@]}"
 else
-  bash "$TMP_DIR/bootstrap.sh" --flake-file "$FLAKE_FILE"
+  bash "$TMP_DIR/bootstrap.sh"
 fi
 
 if [ -f "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh" ]; then

@@ -1,13 +1,13 @@
 # Base modules for LazyVim configuration
-{ ... }:
+{ config, pkgs, lib, ... }:
 
 {
   imports = [
-    ../base/git.nix
-    ../base/shell.nix
-    ../base/terminal.nix
-    ../base/neovim-lazyvim.nix  # Use LazyVim module instead
+    ../base/packages.nix
     ../base/tmux.nix
-    ../base/tools.nix
+    ../base/neovim-lazyvim.nix  # Use LazyVim module instead
+    ../base/shell.nix
+    ../base/git.nix
+    ../base/lazygit.nix
   ];
 }
