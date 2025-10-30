@@ -28,6 +28,9 @@
     "/opt/homebrew/sbin"
   ];
 
+  # Copy spooky pumpkin background image
+  xdg.dataFile."ghostty/spooky-pumpkin.jpg".source = ../../assets/spooky-pumpkin.jpg;
+
   # Ghostty configuration
   xdg.configFile."ghostty/config" = {
     text = ''
@@ -105,8 +108,8 @@
       macos-titlebar-style = transparent
       macos-titlebar-proxy-icon = hidden
 
-      # Spooky pumpkin background
-      background-image = https://get.pxhere.com/photo/night-fall-spooky-orange-autumn-pumpkin-halloween-darkness-circle-jack-o-lantern-scary-holidays-seasonal-lanterns-carving-or-decorations-traditional-pumpkins-trick-treat-macro-photography-computer-wallpaper-456664.jpg
+      # Spooky pumpkin background (using local file path)
+      background-image = ~/.local/share/ghostty/spooky-pumpkin.jpg
 
       working-directory = home
     '';

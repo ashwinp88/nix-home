@@ -5,14 +5,23 @@ return {
   -- Disable neo-tree
   { "nvim-neo-tree/neo-tree.nvim", enabled = false },
 
-  -- Configure snacks.nvim to enable explorer
+  -- Configure snacks.nvim explorer (verified from actual docs)
   {
     "folke/snacks.nvim",
     opts = {
       explorer = {
-        enabled = true,
-        focus_on_open = true,  -- Focus when opening
-        follow = true,         -- Highlight currently open file
+        enabled = true,  -- Enable explorer feature
+      },
+      picker = {
+        sources = {
+          explorer = {
+            follow_file = true,  -- Automatically follow current buffer file
+            watch = true,        -- Auto-refresh on file system changes
+            tree = true,         -- Tree view formatting
+            git_status = true,   -- Show git status indicators
+            diagnostics = true,  -- Show diagnostics
+          },
+        },
       },
     },
     keys = {
@@ -26,7 +35,7 @@ return {
       {
         "<leader>E",
         function()
-          require("snacks").explorer({ focus = true })
+          require("snacks").explorer()
         end,
         desc = "Focus file explorer",
       },
