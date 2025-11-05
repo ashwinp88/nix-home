@@ -11,6 +11,7 @@ return {
     opts = {
       explorer = {
         enabled = true,  -- Enable explorer feature
+        follow = true,   -- Try top-level follow (you reported this worked)
       },
       picker = {
         sources = {

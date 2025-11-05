@@ -28,15 +28,13 @@
     "/opt/homebrew/sbin"
   ];
 
-  # Copy spooky pumpkin background image
-  xdg.dataFile."ghostty/spooky-pumpkin.jpg".source = ../../assets/spooky-pumpkin.jpg;
-
   # Ghostty configuration
   xdg.configFile."ghostty/config" = {
     text = ''
       font-family = "FiraCode Nerd Font"
       font-size = 12
       font-thicken = true
+      font-thicken-strength = 70  # Smooth text rendering (matches iTerm/Terminal.app)
 
       # Background with opacity and blur
       background = #1e1e2e
@@ -107,9 +105,6 @@
       macos-non-native-fullscreen = false
       macos-titlebar-style = transparent
       macos-titlebar-proxy-icon = hidden
-
-      # Spooky pumpkin background (using local file path)
-      background-image = ~/.local/share/ghostty/spooky-pumpkin.jpg
 
       working-directory = home
     '';

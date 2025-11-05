@@ -1,5 +1,5 @@
 -- Conform.nvim configuration override
--- Enable format_on_save
+-- LazyVim handles format-on-save automatically, we just configure formatters
 
 return {
   "stevearc/conform.nvim",
@@ -18,7 +18,7 @@ return {
       markdown = { "prettier" },
       -- Ruby formatter will be added by ruby-conform.lua when Ruby module is active
     },
-    format_on_save = { timeout_ms = 500, lsp_fallback = true },
+    -- Don't set format_on_save - LazyVim handles it automatically
   },
   keys = {
     {

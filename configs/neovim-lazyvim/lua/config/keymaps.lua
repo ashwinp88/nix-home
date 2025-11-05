@@ -24,3 +24,7 @@ vim.keymap.set({ "n", "i", "v" }, "<C-s>", "<cmd>write<cr>", { desc = "Save File
 vim.keymap.set("n", "<leader>qq", "<cmd>qa<cr>", { desc = "Quit all" })
 vim.keymap.set("n", "<leader>qQ", "<cmd>qa!<cr>", { desc = "Quit all without saving" })
 vim.keymap.set("n", "<leader>qw", "<cmd>wqa<cr>", { desc = "Save all and quit" })
+
+-- Jump list navigation (easier than default Ctrl-o/Ctrl-i)
+vim.keymap.set("n", "<C-->", "<C-o>", { desc = "Jump to previous location" })
+vim.keymap.set("n", "<C-=>", "<C-i>", { desc = "Jump to next location" })

@@ -82,7 +82,7 @@ return {
 
 				-- Rename
 				vim.keymap.set("n", "<leader>cR", function()
-					Snacks.rename()
+					vim.lsp.buf.rename()
 				end, vim.tbl_extend("force", opts, { desc = "Rename (LSP)" }))
 			end,
 		})
