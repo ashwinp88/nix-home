@@ -70,7 +70,7 @@ vim.diagnostic.config({
 
 -- Folding settings (using treesitter)
 vim.opt.foldmethod = "expr"
-vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
+vim.opt.foldexpr = "v:lua.vim.treesitter.foldexpr()"
 vim.opt.foldcolumn = "1"       -- Show fold column
 vim.opt.foldlevel = 99         -- Open all folds by default
 vim.opt.foldlevelstart = 99    -- Open all folds when opening a file
