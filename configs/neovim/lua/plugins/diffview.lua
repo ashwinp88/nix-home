@@ -51,5 +51,11 @@ return {
 				layout = "diff3_horizontal",
 			},
 		},
+		hooks = {
+			view_opened = function()
+				-- Enable synchronized scrolling in diff views
+				vim.cmd("windo set scrollbind cursorbind")
+			end,
+		},
 	},
 }
