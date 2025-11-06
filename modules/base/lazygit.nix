@@ -6,9 +6,9 @@
     settings = {
       git = {
         autoFetch = false;
-        paging = {
-          colorArg = "always";
-          pager = "delta --dark --paging=never --line-numbers";
+        pagers = {
+          diff = "delta --dark --paging=never --line-numbers";
+          show = "delta --dark --paging=never --line-numbers";
         };
       };
 
