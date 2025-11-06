@@ -2,13 +2,18 @@ return {
   "nvim-treesitter/nvim-treesitter",
   build = ":TSUpdate",
   config = function()
-    local ok, configs = pcall(require, "nvim-treesitter.configs")
+    -- Try the newer module name first (config without 's')
+    local ok, config = pcall(require, "nvim-treesitter.config")
     if not ok then
-      vim.notify("nvim-treesitter not available", vim.log.levels.WARN)
-      return
+      -- Fall back to older module name (configs with 's')
+      ok, config = pcall(require, "nvim-treesitter.configs")
+      if not ok then
+        vim.notify("nvim-treesitter not available", vim.log.levels.WARN)
+        return
+      end
     end
 
-    configs.setup({
+    config.setup({
       ensure_installed = {
         "lua",
         "vim",
