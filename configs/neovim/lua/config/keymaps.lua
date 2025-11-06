@@ -16,3 +16,7 @@ vim.keymap.set("n", "<leader>'", function()
 	vim.fn.setreg("+", path)
 	vim.notify("Copied full path: " .. path, vim.log.levels.INFO)
 end, { desc = "Copy full path", nowait = true })
+
+-- Jump list navigation (easier than default Ctrl-o/Ctrl-i)
+vim.keymap.set("n", "<C-->", "<C-o>", { desc = "Jump to previous location" })
+vim.keymap.set("n", "<C-=>", "<C-i>", { desc = "Jump to next location" })
