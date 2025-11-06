@@ -166,18 +166,7 @@ return {
 			desc = "Git Branches",
 			nowait = true,
 		},
-		{
-			"<leader>gl",
-			function() Snacks.picker.git_log() end,
-			desc = "Git Log",
-			nowait = true,
-		},
-		{
-			"<leader>gL",
-			function() Snacks.picker.git_log_line() end,
-			desc = "Git Log Line",
-			nowait = true,
-		},
+		-- Removed <leader>gl and <leader>gL - using diffview.nvim instead
 		{
 			"<leader>gs",
 			function() Snacks.picker.git_status() end,
@@ -190,12 +179,7 @@ return {
 			desc = "Git Stash",
 			nowait = true,
 		},
-		{
-			"<leader>gd",
-			function() Snacks.picker.git_diff() end,
-			desc = "Git Diff (Hunks)",
-			nowait = true,
-		},
+		-- Removed <leader>gd - using diffview.nvim instead
 		{
 			"<leader>gf",
 			function() Snacks.picker.git_log_file() end,

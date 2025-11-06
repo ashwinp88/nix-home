@@ -12,6 +12,21 @@ return {
       explorer = {
         enabled = true,  -- Enable explorer feature
         follow = true,   -- Try top-level follow (you reported this worked)
+        -- Add arrow key mappings for navigation (like neo-tree)
+        win = {
+          mappings = {
+            -- Arrow keys for navigation
+            ["<Left>"] = "collapse",    -- Collapse folder with left arrow
+            ["<Right>"] = "expand",      -- Expand folder with right arrow
+            ["<Up>"] = "prev",          -- Move up with up arrow
+            ["<Down>"] = "next",        -- Move down with down arrow
+            -- Keep default mappings too
+            ["h"] = "collapse",
+            ["l"] = "expand",
+            ["<CR>"] = "open",
+            ["<2-LeftMouse>"] = "open",
+          },
+        },
       },
       picker = {
         sources = {
