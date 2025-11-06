@@ -2,18 +2,7 @@ return {
   "nvim-treesitter/nvim-treesitter",
   build = ":TSUpdate",
   config = function()
-    -- Try the newer module name first (config without 's')
-    local ok, config = pcall(require, "nvim-treesitter.config")
-    if not ok then
-      -- Fall back to older module name (configs with 's')
-      ok, config = pcall(require, "nvim-treesitter.configs")
-      if not ok then
-        vim.notify("nvim-treesitter not available", vim.log.levels.WARN)
-        return
-      end
-    end
-
-    config.setup({
+    require("nvim-treesitter.config").setup({
       ensure_installed = {
         "lua",
         "vim",
@@ -33,11 +22,9 @@ return {
       indent = {
         enable = true,
       },
-      fold = {
-        enable = true,
-      },
+      -- Note: Folding is built into Neovim 0.10+ with treesitter
+      -- No need for a separate fold module
       ignore_install = { "python" },
-      modules = {},
     })
   end,
 }
