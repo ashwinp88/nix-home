@@ -34,7 +34,8 @@
       font-family = "FiraCode Nerd Font"
       font-size = 12
       font-thicken = true
-      font-thicken-strength = 70  # Smooth text rendering (matches iTerm/Terminal.app)
+      # Smooth text rendering (matches iTerm/Terminal.app)
+      font-thicken-strength = 70
 
       # Background with opacity and blur
       background = #1e1e2e
