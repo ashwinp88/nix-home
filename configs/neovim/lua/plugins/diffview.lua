@@ -40,6 +40,12 @@ return {
 			desc = "Git Log (Current File)",
 			nowait = true,
 		},
+		{
+			"<leader>gq",
+			"<cmd>DiffviewClose<cr>",
+			desc = "Close DiffView",
+			nowait = true,
+		},
 	},
 	opts = {
 		enhanced_diff_hl = true,
