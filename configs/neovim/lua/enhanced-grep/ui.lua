@@ -1,23 +1,40 @@
--- Unified picker UI for enhanced grep
+-- Redesigned unified picker UI for enhanced grep with preview pane
 local state = require("enhanced-grep.state")
 local patterns = require("enhanced-grep.patterns")
 
 local M = {}
 
--- UI state
+-- UI state with additional windows for new layout
 local ui_state = {
+  -- Main results window
   main_buf = nil,
   main_win = nil,
+  -- Three input windows
   input_buf = nil,
   input_win = nil,
+  include_buf = nil,
+  include_win = nil,
+  exclude_buf = nil,
+  exclude_win = nil,
+  -- Options and preview windows
+  options_buf = nil,
+  options_win = nil,
+  preview_buf = nil,
+  preview_win = nil,
+  -- State tracking
   results = {},
   file_map = {},
   match_map = {},
   search_timer = nil,
   current_search = "",
+  current_include = "",
+  current_exclude = "",
   include_patterns = {},
   exclude_patterns = {},
   on_search_callback = nil,
+  current_preview_file = nil,
+  -- Options state
+  ruby_only = false,
 }
 
 -- Icons
@@ -38,7 +55,12 @@ local function setup_highlights()
   vim.api.nvim_set_hl(0, "EnhancedGrepCount", {link = "Number", default = true})
   vim.api.nvim_set_hl(0, "EnhancedGrepPrompt", {link = "Title", default = true})
   vim.api.nvim_set_hl(0, "EnhancedGrepBorder", {link = "FloatBorder", default = true})
+  vim.api.nvim_set_hl(0, "EnhancedGrepPreviewHighlight", {link = "CursorLine", default = true})
 end
+
+-- Forward declarations
+local trigger_search
+local render_options
 
 --- Close the picker
 function M.close()
@@ -47,48 +69,128 @@ function M.close()
     ui_state.search_timer = nil
   end
 
-  if ui_state.input_win and vim.api.nvim_win_is_valid(ui_state.input_win) then
-    vim.api.nvim_win_close(ui_state.input_win, true)
-  end
-  if ui_state.main_win and vim.api.nvim_win_is_valid(ui_state.main_win) then
-    vim.api.nvim_win_close(ui_state.main_win, true)
+  -- Close all windows
+  local windows = {
+    ui_state.input_win,
+    ui_state.include_win,
+    ui_state.exclude_win,
+    ui_state.options_win,
+    ui_state.main_win,
+    ui_state.preview_win,
+  }
+
+  for _, win in ipairs(windows) do
+    if win and vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_close(win, true)
+    end
   end
 
+  -- Reset state
   ui_state = {
     main_buf = nil,
     main_win = nil,
     input_buf = nil,
     input_win = nil,
+    include_buf = nil,
+    include_win = nil,
+    exclude_buf = nil,
+    exclude_win = nil,
+    options_buf = nil,
+    options_win = nil,
+    preview_buf = nil,
+    preview_win = nil,
     results = {},
     file_map = {},
     match_map = {},
     search_timer = nil,
     current_search = "",
+    current_include = "",
+    current_exclude = "",
     include_patterns = {},
     exclude_patterns = {},
     on_search_callback = nil,
+    current_preview_file = nil,
+    ruby_only = false,
   }
 end
 
---- Render header with filters
-local function render_header(include_pat, exclude_pat, no_tests)
-  local lines = {}
-  local test_icon = no_tests and icons.checked or icons.unchecked
+--- Update preview pane with file content
+--- @param file string|nil File path
+--- @param line_number number|nil Line to highlight
+local function update_preview(file, line_number)
+  if not ui_state.preview_buf or not vim.api.nvim_buf_is_valid(ui_state.preview_buf) then
+    return
+  end
 
-  local include_str = patterns.format_patterns(include_pat)
-  local exclude_str = patterns.format_patterns(exclude_pat)
+  if not file or file == "" then
+    vim.api.nvim_buf_set_option(ui_state.preview_buf, "modifiable", true)
+    vim.api.nvim_buf_set_lines(ui_state.preview_buf, 0, -1, false, {"No preview available"})
+    vim.api.nvim_buf_set_option(ui_state.preview_buf, "modifiable", false)
+    return
+  end
 
-  table.insert(lines, string.format("%s No Tests [C-t]  Include: %s [C-i]  Exclude: %s [C-e]  Help: [?]",
-    test_icon,
-    include_str ~= "" and include_str or "(none)",
-    exclude_str ~= "" and exclude_str or "(none)"
-  ))
-  table.insert(lines, string.rep("─", 100))
+  ui_state.current_preview_file = file
 
-  return lines
+  -- Read file contents
+  local ok, lines = pcall(vim.fn.readfile, file)
+  if not ok or not lines then
+    vim.api.nvim_buf_set_option(ui_state.preview_buf, "modifiable", true)
+    vim.api.nvim_buf_set_lines(ui_state.preview_buf, 0, -1, false, {"Error reading file: " .. file})
+    vim.api.nvim_buf_set_option(ui_state.preview_buf, "modifiable", false)
+    return
+  end
+
+  -- Set file contents
+  vim.api.nvim_buf_set_option(ui_state.preview_buf, "modifiable", true)
+  vim.api.nvim_buf_set_lines(ui_state.preview_buf, 0, -1, false, lines)
+  vim.api.nvim_buf_set_option(ui_state.preview_buf, "modifiable", false)
+
+  -- Set filetype for syntax highlighting
+  local ft = vim.filetype.match({filename = file})
+  if ft then
+    vim.api.nvim_buf_set_option(ui_state.preview_buf, "filetype", ft)
+  end
+
+  -- Highlight and scroll to line
+  if line_number and ui_state.preview_win and vim.api.nvim_win_is_valid(ui_state.preview_win) then
+    -- Center on the line
+    pcall(vim.api.nvim_win_set_cursor, ui_state.preview_win, {line_number, 0})
+    vim.api.nvim_win_call(ui_state.preview_win, function()
+      vim.cmd("normal! zz")
+    end)
+
+    -- Add highlight for the line
+    local ns_id = vim.api.nvim_create_namespace("enhanced_grep_preview")
+    vim.api.nvim_buf_clear_namespace(ui_state.preview_buf, ns_id, 0, -1)
+    vim.api.nvim_buf_add_highlight(ui_state.preview_buf, ns_id, "EnhancedGrepPreviewHighlight", line_number - 1, 0, -1)
+  end
 end
 
---- Render results in main buffer
+--- Update preview based on cursor position
+function M.update_preview_from_cursor()
+  if not ui_state.main_buf or not ui_state.main_win then
+    return
+  end
+
+  local cursor = vim.api.nvim_win_get_cursor(ui_state.main_win)
+  local line = cursor[1]
+
+  -- Check if cursor is on a match line
+  local match_data = ui_state.match_map[line]
+  if match_data then
+    update_preview(match_data.file, match_data.line_number)
+    return
+  end
+
+  -- Check if cursor is on a file line
+  local file_data = ui_state.file_map[line]
+  if file_data then
+    update_preview(file_data.file, nil)
+    return
+  end
+end
+
+--- Render results in main buffer with default expanded view
 function M.render_results(results)
   if not ui_state.main_buf or not vim.api.nvim_buf_is_valid(ui_state.main_buf) then
     return
@@ -101,15 +203,6 @@ function M.render_results(results)
   local lines = {}
   local highlights = {}
 
-  -- Header with filters
-  local current = state.get()
-  local header_lines = render_header(
-    ui_state.include_patterns,
-    ui_state.exclude_patterns,
-    current.ignore_tests
-  )
-  vim.list_extend(lines, header_lines)
-
   -- Results header
   local total_files = #ui_state.results
   local total_matches = 0
@@ -118,10 +211,10 @@ function M.render_results(results)
   end
 
   if total_files == 0 then
-    table.insert(lines, "")
     table.insert(lines, "No results found")
-  else
     table.insert(lines, "")
+    table.insert(lines, "Try adjusting your search pattern or filters")
+  else
     table.insert(lines, string.format("Results: %d files, %d matches", total_files, total_matches))
     table.insert(lines, "")
 
@@ -130,7 +223,10 @@ function M.render_results(results)
       local file = file_data.path
       local matches = file_data.matches
       local file_line = #lines + 1
-      local is_expanded = state.get_fold_state(file)
+
+      -- Default to expanded (true) if no saved state exists
+      local saved_fold_state = state.get_fold_state(file)
+      local is_expanded = saved_fold_state ~= false  -- Default true if nil
 
       -- File header line
       local fold_icon = is_expanded and icons.expanded or icons.collapsed
@@ -167,6 +263,12 @@ function M.render_results(results)
             match.line_number,
             match.text:gsub("^%s+", ""):gsub("%s+$", "")
           )
+
+          -- Truncate long lines
+          if #match_text > 80 then
+            match_text = match_text:sub(1, 77) .. "..."
+          end
+
           table.insert(lines, match_text)
 
           -- Store match info for navigation
@@ -284,8 +386,42 @@ function M.to_quickfix()
   vim.notify(string.format("Exported %d matches to quickfix", #qf_list), vim.log.levels.INFO)
 end
 
--- Forward declaration for trigger_search
-local trigger_search
+--- Move to next input field
+function M.next_input()
+  local current_win = vim.api.nvim_get_current_win()
+
+  if current_win == ui_state.input_win then
+    vim.api.nvim_set_current_win(ui_state.include_win)
+    vim.cmd("startinsert!")
+  elseif current_win == ui_state.include_win then
+    vim.api.nvim_set_current_win(ui_state.exclude_win)
+    vim.cmd("startinsert!")
+  elseif current_win == ui_state.exclude_win then
+    vim.api.nvim_set_current_win(ui_state.main_win)
+  else
+    vim.api.nvim_set_current_win(ui_state.input_win)
+    vim.cmd("startinsert!")
+  end
+end
+
+--- Move to previous input field
+function M.prev_input()
+  local current_win = vim.api.nvim_get_current_win()
+
+  if current_win == ui_state.exclude_win then
+    vim.api.nvim_set_current_win(ui_state.include_win)
+    vim.cmd("startinsert!")
+  elseif current_win == ui_state.include_win then
+    vim.api.nvim_set_current_win(ui_state.input_win)
+    vim.cmd("startinsert!")
+  elseif current_win == ui_state.input_win then
+    vim.api.nvim_set_current_win(ui_state.exclude_win)
+    vim.cmd("startinsert!")
+  else
+    vim.api.nvim_set_current_win(ui_state.input_win)
+    vim.cmd("startinsert!")
+  end
+end
 
 --- Toggle "No Tests" filter
 function M.toggle_no_tests()
@@ -313,45 +449,77 @@ function M.toggle_no_tests()
     end, ui_state.exclude_patterns)
   end
 
-  -- Re-render and re-search
-  M.render_results(ui_state.results)
+  -- Update exclude input buffer
+  if ui_state.exclude_buf and vim.api.nvim_buf_is_valid(ui_state.exclude_buf) then
+    local exclude_str = patterns.format_patterns(ui_state.exclude_patterns)
+    vim.api.nvim_buf_set_lines(ui_state.exclude_buf, 0, -1, false, {exclude_str})
+  end
+
+  render_options()
   if ui_state.current_search ~= "" then
     trigger_search()
   end
 end
 
---- Edit include patterns
-function M.edit_include_patterns()
-  local current = patterns.format_patterns(ui_state.include_patterns)
-  vim.ui.input({
-    prompt = "Include patterns (space-separated, e.g. *.lua *.vim): ",
-    default = current,
-  }, function(input)
-    if input then
-      ui_state.include_patterns = patterns.parse_patterns(input)
-      M.render_results(ui_state.results)
-      if ui_state.current_search ~= "" then
-        trigger_search()
-      end
+--- Toggle Ruby only filter
+function M.toggle_ruby_only()
+  ui_state.ruby_only = not ui_state.ruby_only
+
+  if ui_state.ruby_only then
+    -- Add *.rb to include patterns if not present
+    if not vim.tbl_contains(ui_state.include_patterns, "*.rb") then
+      table.insert(ui_state.include_patterns, "*.rb")
     end
-  end)
+  else
+    -- Remove *.rb from include patterns
+    ui_state.include_patterns = vim.tbl_filter(function(p)
+      return p ~= "*.rb"
+    end, ui_state.include_patterns)
+  end
+
+  -- Update include input buffer
+  if ui_state.include_buf and vim.api.nvim_buf_is_valid(ui_state.include_buf) then
+    local include_str = patterns.format_patterns(ui_state.include_patterns)
+    vim.api.nvim_buf_set_lines(ui_state.include_buf, 0, -1, false, {include_str})
+  end
+
+  render_options()
+  if ui_state.current_search ~= "" then
+    trigger_search()
+  end
 end
 
---- Edit exclude patterns
-function M.edit_exclude_patterns()
-  local current = patterns.format_patterns(ui_state.exclude_patterns)
-  vim.ui.input({
-    prompt = "Exclude patterns (space-separated, e.g. /test/* *_spec.*): ",
-    default = current,
-  }, function(input)
-    if input then
-      ui_state.exclude_patterns = patterns.parse_patterns(input)
-      M.render_results(ui_state.results)
-      if ui_state.current_search ~= "" then
-        trigger_search()
-      end
-    end
-  end)
+--- Toggle case sensitivity
+function M.toggle_case_sensitive()
+  local current = state.get()
+  state.update({case_sensitive = not current.case_sensitive})
+  render_options()
+  if ui_state.current_search ~= "" then
+    trigger_search()
+  end
+end
+
+--- Render options line
+render_options = function()
+  if not ui_state.options_buf or not vim.api.nvim_buf_is_valid(ui_state.options_buf) then
+    return
+  end
+
+  local current = state.get()
+  local no_tests_icon = current.ignore_tests and icons.checked or icons.unchecked
+  local ruby_only_icon = ui_state.ruby_only and icons.checked or icons.unchecked
+  local case_icon = current.case_sensitive and icons.checked or icons.unchecked
+
+  local line = string.format(
+    " %s No Tests [1]   %s Ruby Only [2]   %s Case Sensitive [3]   [?] Help",
+    no_tests_icon,
+    ruby_only_icon,
+    case_icon
+  )
+
+  vim.api.nvim_buf_set_option(ui_state.options_buf, "modifiable", true)
+  vim.api.nvim_buf_set_lines(ui_state.options_buf, 0, -1, false, {line})
+  vim.api.nvim_buf_set_option(ui_state.options_buf, "modifiable", false)
 end
 
 --- Show help
@@ -359,40 +527,65 @@ function M.show_help()
   local help_text = {
     "Enhanced Grep Keybindings:",
     "",
-    "Navigation:",
-    "  <CR>       - Jump to match under cursor",
-    "  <Tab>/za   - Toggle fold for file",
-    "  zR         - Expand all folds",
-    "  zM         - Collapse all folds",
+    "Input Navigation:",
+    "  <Tab>/<C-n>    - Next input field",
+    "  <S-Tab>/<C-p>  - Previous input field",
+    "  <CR>           - Execute search and focus results",
     "",
-    "Editing:",
-    "  i          - Edit search pattern",
-    "  <C-t>      - Toggle 'No Tests' filter",
-    "  <C-i>      - Edit include patterns",
-    "  <C-e>      - Edit exclude patterns",
+    "Results Navigation:",
+    "  <CR>           - Jump to match under cursor",
+    "  <Tab>/za       - Toggle fold for file",
+    "  zR             - Expand all folds",
+    "  zM             - Collapse all folds",
+    "  i              - Return to search input",
+    "",
+    "Quick Options:",
+    "  1              - Toggle 'No Tests' filter",
+    "  2              - Toggle 'Ruby Only' filter",
+    "  3              - Toggle case sensitivity",
     "",
     "Actions:",
-    "  <C-q>      - Send to quickfix list",
-    "  q/<Esc>    - Close picker",
-    "  ?          - Show this help",
+    "  <C-q>          - Send to quickfix list",
+    "  q/<Esc>        - Close picker",
+    "  ?              - Show this help",
     "",
     "Tips:",
-    "  - Type to search live (300ms delay)",
-    "  - Use wildcards in patterns (*.rb, /test/*, etc)",
+    "  - All inputs support live search (300ms delay)",
+    "  - Use wildcards: *.rb, /test/*, **/*.lua",
+    "  - Preview updates as you navigate results",
+    "  - Files are expanded by default",
   }
 
   vim.notify(table.concat(help_text, "\n"), vim.log.levels.INFO, {title = "Enhanced Grep Help"})
 end
 
---- Trigger search from input
+--- Trigger search from inputs
 trigger_search = function()
   if not ui_state.input_buf or not vim.api.nvim_buf_is_valid(ui_state.input_buf) then
     return
   end
 
-  local lines = vim.api.nvim_buf_get_lines(ui_state.input_buf, 0, 1, false)
-  local pattern = (lines[1] or ""):gsub("^%s+", ""):gsub("%s+$", "")  -- Trim whitespace
+  -- Get search pattern
+  local pattern_lines = vim.api.nvim_buf_get_lines(ui_state.input_buf, 0, 1, false)
+  local pattern = (pattern_lines[1] or ""):gsub("^%s+", ""):gsub("%s+$", "")
 
+  -- Get include patterns
+  if ui_state.include_buf and vim.api.nvim_buf_is_valid(ui_state.include_buf) then
+    local include_lines = vim.api.nvim_buf_get_lines(ui_state.include_buf, 0, 1, false)
+    local include_str = (include_lines[1] or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    ui_state.current_include = include_str
+    ui_state.include_patterns = patterns.parse_patterns(include_str)
+  end
+
+  -- Get exclude patterns
+  if ui_state.exclude_buf and vim.api.nvim_buf_is_valid(ui_state.exclude_buf) then
+    local exclude_lines = vim.api.nvim_buf_get_lines(ui_state.exclude_buf, 0, 1, false)
+    local exclude_str = (exclude_lines[1] or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    ui_state.current_exclude = exclude_str
+    ui_state.exclude_patterns = patterns.parse_patterns(exclude_str)
+  end
+
+  -- Check if anything changed
   if pattern == ui_state.current_search then
     return
   end
@@ -424,84 +617,18 @@ local function trigger_search_debounced()
   end)
 end
 
---- Create the unified picker UI
-function M.create_picker(opts)
-  opts = opts or {}
-
-  -- Load saved state
-  local saved_state = state.get()
-  ui_state.include_patterns = opts.include_patterns or saved_state.last_include or {}
-  ui_state.exclude_patterns = opts.exclude_patterns or saved_state.last_exclude or {}
-  ui_state.on_search_callback = opts.on_search
-
-  -- Calculate dimensions
-  local width = opts.width or math.floor(vim.o.columns * 0.8)
-  local height = opts.height or math.floor(vim.o.lines * 0.8)
-  local row = math.floor((vim.o.lines - height) / 2)
-  local col = math.floor((vim.o.columns - width) / 2)
-
-  -- Create input buffer (regular buffer for text change events)
-  ui_state.input_buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_option(ui_state.input_buf, "bufhidden", "wipe")
-  vim.api.nvim_buf_set_option(ui_state.input_buf, "buftype", "")  -- Regular buffer, not prompt
-  vim.api.nvim_buf_set_option(ui_state.input_buf, "modifiable", true)
-  vim.api.nvim_buf_set_lines(ui_state.input_buf, 0, -1, false, {opts.default_pattern or ""})
-
-  -- No prompt_setprompt for regular buffers
-
-  -- Create input window with search label
-  ui_state.input_win = vim.api.nvim_open_win(ui_state.input_buf, true, {
-    relative = "editor",
-    width = width,
-    height = 1,
-    row = row,
-    col = col,
-    style = "minimal",
-    border = {"╭", "─", "╮", "│", "┤", "─", "├", "│"},
-    title = " Enhanced Grep - Search: ",
-    title_pos = "left",
-  })
-
-  -- Create main buffer for results
-  ui_state.main_buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_option(ui_state.main_buf, "bufhidden", "wipe")
-  vim.api.nvim_buf_set_option(ui_state.main_buf, "filetype", "enhanced-grep")
-  vim.api.nvim_buf_set_option(ui_state.main_buf, "modifiable", false)
-
-  -- Create main window for results
-  ui_state.main_win = vim.api.nvim_open_win(ui_state.main_buf, false, {
-    relative = "editor",
-    width = width,
-    height = height - 2,
-    row = row + 2,
-    col = col,
-    style = "minimal",
-    border = {"├", "─", "┤", "│", "╯", "─", "╰", "│"},
-  })
-
-  vim.api.nvim_win_set_option(ui_state.main_win, "wrap", false)
-  vim.api.nvim_win_set_option(ui_state.main_win, "cursorline", true)
-
-  -- Set up input buffer keymaps
-  local input_keymaps = {
+--- Set up keymaps for input buffers
+local function setup_input_keymaps(buf)
+  local keymaps = {
+    {"i", "<Tab>", M.next_input, {desc = "Next input"}},
+    {"i", "<S-Tab>", M.prev_input, {desc = "Previous input"}},
+    {"i", "<C-n>", M.next_input, {desc = "Next input"}},
+    {"i", "<C-p>", M.prev_input, {desc = "Previous input"}},
     {"i", "<CR>", function()
       trigger_search()
       vim.cmd("stopinsert")
       vim.api.nvim_set_current_win(ui_state.main_win)
-    end, {desc = "Search"}},
-    {"i", "<C-t>", function()
-      vim.cmd("stopinsert")
-      M.toggle_no_tests()
-      vim.cmd("startinsert!")
-    end, {desc = "Toggle no tests filter"}},
-    {"i", "<C-i>", function()
-      vim.cmd("stopinsert")
-      M.edit_include_patterns()
-    end, {desc = "Edit include patterns"}},
-    {"i", "<C-e>", function()
-      vim.cmd("stopinsert")
-      M.edit_exclude_patterns()
-    end, {desc = "Edit exclude patterns"}},
+    end, {desc = "Search and focus results"}},
     {"i", "<Esc>", function()
       M.close()
     end, {desc = "Close"}},
@@ -515,12 +642,161 @@ function M.create_picker(opts)
       M.close()
     end, {desc = "Close"}},
     {"n", "?", M.show_help, {desc = "Show help"}},
+    {"n", "1", M.toggle_no_tests, {desc = "Toggle no tests"}},
+    {"n", "2", M.toggle_ruby_only, {desc = "Toggle Ruby only"}},
+    {"n", "3", M.toggle_case_sensitive, {desc = "Toggle case sensitive"}},
   }
 
-  for _, keymap in ipairs(input_keymaps) do
+  for _, keymap in ipairs(keymaps) do
     vim.keymap.set(keymap[1], keymap[2], keymap[3],
-      vim.tbl_extend("force", keymap[4], {buffer = ui_state.input_buf, nowait = true}))
+      vim.tbl_extend("force", keymap[4], {buffer = buf, nowait = true}))
   end
+end
+
+--- Create the unified picker UI with preview pane
+function M.create_picker(opts)
+  opts = opts or {}
+
+  -- Load saved state
+  local saved_state = state.get()
+  ui_state.include_patterns = opts.include_patterns or saved_state.last_include or {}
+  ui_state.exclude_patterns = opts.exclude_patterns or saved_state.last_exclude or {}
+  ui_state.on_search_callback = opts.on_search
+
+  -- Calculate dimensions
+  local total_width = opts.width or math.floor(vim.o.columns * 0.9)
+  local total_height = opts.height or math.floor(vim.o.lines * 0.9)
+  local row = math.floor((vim.o.lines - total_height) / 2)
+  local col = math.floor((vim.o.columns - total_width) / 2)
+
+  -- Layout calculations
+  local input_height = 3  -- 3 input fields
+  local options_height = 2  -- Options line + separator
+  local results_height = total_height - input_height - options_height
+  local results_width = math.floor(total_width * 0.5)
+  local preview_width = total_width - results_width - 1  -- -1 for border
+
+  -- Create search pattern buffer
+  ui_state.input_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_option(ui_state.input_buf, "bufhidden", "wipe")
+  vim.api.nvim_buf_set_option(ui_state.input_buf, "buftype", "")
+  vim.api.nvim_buf_set_option(ui_state.input_buf, "modifiable", true)
+  vim.api.nvim_buf_set_lines(ui_state.input_buf, 0, -1, false, {opts.default_pattern or ""})
+
+  -- Create include pattern buffer
+  ui_state.include_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_option(ui_state.include_buf, "bufhidden", "wipe")
+  vim.api.nvim_buf_set_option(ui_state.include_buf, "buftype", "")
+  vim.api.nvim_buf_set_option(ui_state.include_buf, "modifiable", true)
+  vim.api.nvim_buf_set_lines(ui_state.include_buf, 0, -1, false, {patterns.format_patterns(ui_state.include_patterns)})
+
+  -- Create exclude pattern buffer
+  ui_state.exclude_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_option(ui_state.exclude_buf, "bufhidden", "wipe")
+  vim.api.nvim_buf_set_option(ui_state.exclude_buf, "buftype", "")
+  vim.api.nvim_buf_set_option(ui_state.exclude_buf, "modifiable", true)
+  vim.api.nvim_buf_set_lines(ui_state.exclude_buf, 0, -1, false, {patterns.format_patterns(ui_state.exclude_patterns)})
+
+  -- Create options buffer
+  ui_state.options_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_option(ui_state.options_buf, "bufhidden", "wipe")
+  vim.api.nvim_buf_set_option(ui_state.options_buf, "modifiable", false)
+
+  -- Create main results buffer
+  ui_state.main_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_option(ui_state.main_buf, "bufhidden", "wipe")
+  vim.api.nvim_buf_set_option(ui_state.main_buf, "filetype", "enhanced-grep")
+  vim.api.nvim_buf_set_option(ui_state.main_buf, "modifiable", false)
+
+  -- Create preview buffer
+  ui_state.preview_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_option(ui_state.preview_buf, "bufhidden", "wipe")
+  vim.api.nvim_buf_set_option(ui_state.preview_buf, "modifiable", false)
+
+  -- Create input windows
+  ui_state.input_win = vim.api.nvim_open_win(ui_state.input_buf, true, {
+    relative = "editor",
+    width = total_width,
+    height = 1,
+    row = row,
+    col = col,
+    style = "minimal",
+    border = {"╭", "─", "╮", "│", "│", "─", "│", "│"},
+    title = " Search Pattern ",
+    title_pos = "left",
+  })
+
+  ui_state.include_win = vim.api.nvim_open_win(ui_state.include_buf, false, {
+    relative = "editor",
+    width = total_width,
+    height = 1,
+    row = row + 1,
+    col = col,
+    style = "minimal",
+    border = {"│", " ", "│", "│", "│", " ", "│", "│"},
+    title = " Include ",
+    title_pos = "left",
+  })
+
+  ui_state.exclude_win = vim.api.nvim_open_win(ui_state.exclude_buf, false, {
+    relative = "editor",
+    width = total_width,
+    height = 1,
+    row = row + 2,
+    col = col,
+    style = "minimal",
+    border = {"│", " ", "│", "│", "├", "─", "┤", "│"},
+    title = " Exclude ",
+    title_pos = "left",
+  })
+
+  -- Create options window
+  ui_state.options_win = vim.api.nvim_open_win(ui_state.options_buf, false, {
+    relative = "editor",
+    width = total_width,
+    height = 1,
+    row = row + input_height,
+    col = col,
+    style = "minimal",
+    border = {"├", "─", "┤", "│", "├", "─", "┴", "│"},
+  })
+
+  -- Create results window (left side)
+  ui_state.main_win = vim.api.nvim_open_win(ui_state.main_buf, false, {
+    relative = "editor",
+    width = results_width,
+    height = results_height,
+    row = row + input_height + options_height,
+    col = col,
+    style = "minimal",
+    border = {"├", "─", "┬", "│", "╰", "─", "┴", "│"},
+    title = " Results ",
+    title_pos = "center",
+  })
+
+  -- Create preview window (right side)
+  ui_state.preview_win = vim.api.nvim_open_win(ui_state.preview_buf, false, {
+    relative = "editor",
+    width = preview_width,
+    height = results_height,
+    row = row + input_height + options_height,
+    col = col + results_width + 1,
+    style = "minimal",
+    border = {"┬", "─", "┤", "│", "┴", "─", "╯", "│"},
+    title = " Preview ",
+    title_pos = "center",
+  })
+
+  -- Set window options
+  vim.api.nvim_win_set_option(ui_state.main_win, "wrap", false)
+  vim.api.nvim_win_set_option(ui_state.main_win, "cursorline", true)
+  vim.api.nvim_win_set_option(ui_state.preview_win, "wrap", false)
+  vim.api.nvim_win_set_option(ui_state.preview_win, "number", true)
+
+  -- Set up keymaps for all input buffers
+  setup_input_keymaps(ui_state.input_buf)
+  setup_input_keymaps(ui_state.include_buf)
+  setup_input_keymaps(ui_state.exclude_buf)
 
   -- Set up main buffer keymaps
   local main_keymaps = {
@@ -533,9 +809,9 @@ function M.create_picker(opts)
       vim.api.nvim_set_current_win(ui_state.input_win)
       vim.cmd("startinsert!")
     end, {desc = "Edit search"}},
-    {"n", "<C-t>", M.toggle_no_tests, {desc = "Toggle no tests filter"}},
-    {"n", "<C-i>", M.edit_include_patterns, {desc = "Edit include patterns"}},
-    {"n", "<C-e>", M.edit_exclude_patterns, {desc = "Edit exclude patterns"}},
+    {"n", "1", M.toggle_no_tests, {desc = "Toggle no tests filter"}},
+    {"n", "2", M.toggle_ruby_only, {desc = "Toggle Ruby only"}},
+    {"n", "3", M.toggle_case_sensitive, {desc = "Toggle case sensitive"}},
     {"n", "?", M.show_help, {desc = "Show help"}},
     {"n", "q", M.close, {desc = "Close"}},
     {"n", "<Esc>", M.close, {desc = "Close"}},
@@ -553,8 +829,28 @@ function M.create_picker(opts)
     callback = trigger_search_debounced,
   })
 
-  -- Render initial empty state
+  vim.api.nvim_create_autocmd({"TextChanged", "TextChangedI"}, {
+    buffer = ui_state.include_buf,
+    callback = trigger_search_debounced,
+  })
+
+  vim.api.nvim_create_autocmd({"TextChanged", "TextChangedI"}, {
+    buffer = ui_state.exclude_buf,
+    callback = trigger_search_debounced,
+  })
+
+  -- Set up autocmd for preview updates
+  vim.api.nvim_create_autocmd({"CursorMoved"}, {
+    buffer = ui_state.main_buf,
+    callback = function()
+      vim.schedule(M.update_preview_from_cursor)
+    end,
+  })
+
+  -- Render initial state
+  render_options()
   M.render_results({})
+  update_preview(nil, nil)
 
   -- Start in insert mode
   vim.cmd("startinsert!")
