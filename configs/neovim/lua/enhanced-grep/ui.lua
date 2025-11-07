@@ -25,6 +25,8 @@ local ui_state = {
   results = {},
   file_map = {},
   match_map = {},
+  folder_map = {},
+  folder_state = {},  -- Track folder expand/collapse
   search_timer = nil,
   current_search = "",
   current_include = "",
@@ -43,9 +45,17 @@ local icons = {
   expanded = "▼",
   collapsed = "▶",
   match = "  ",
-  checked = "☑",
-  unchecked = "☐",
+  checked = "",
+  unchecked = "",
+  folder_open = "",
+  folder_closed = "",
 }
+
+-- Try to load devicons
+local has_devicons, devicons = pcall(require, "nvim-web-devicons")
+if not has_devicons then
+  devicons = nil
+end
 
 -- Highlight groups
 local function setup_highlights()
@@ -207,7 +217,179 @@ function M.update_preview_from_cursor()
   end
 end
 
---- Render results in main buffer with default expanded view
+--- Build folder tree from flat file list
+--- @param results table Flat list of file results
+--- @return table Tree structure with folders and files
+local function build_folder_tree(results)
+  local tree = {}
+
+  for _, file_data in ipairs(results) do
+    local path = file_data.path
+    local parts = vim.split(path, "/")
+
+    local current = tree
+    local path_so_far = ""
+
+    -- Build folder hierarchy
+    for i = 1, #parts - 1 do
+      local folder = parts[i]
+      path_so_far = path_so_far == "" and folder or (path_so_far .. "/" .. folder)
+
+      if not current[folder] then
+        current[folder] = {
+          type = "folder",
+          name = folder,
+          path = path_so_far,
+          children = {},
+        }
+      end
+      current = current[folder].children
+    end
+
+    -- Add file as leaf
+    local filename = parts[#parts]
+    current[filename] = {
+      type = "file",
+      name = filename,
+      path = path,
+      matches = file_data.matches,
+    }
+  end
+
+  return tree
+end
+
+--- Get icon for file using devicons
+--- @param filename string File name
+--- @return string Icon
+local function get_file_icon(filename)
+  if devicons then
+    local icon, _ = devicons.get_icon(filename, vim.fn.fnamemodify(filename, ":e"), {default = true})
+    return icon or ""
+  end
+  return ""
+end
+
+--- Recursively render tree node
+--- @param node table Tree node (folder or file)
+--- @param indent number Current indentation level
+--- @param lines table Lines array to append to
+--- @param highlights table Highlights array to append to
+local function render_tree_node(node, indent, lines, highlights, parent_path)
+  local indent_str = string.rep("  ", indent)
+
+  if node.type == "folder" then
+    -- Render folder
+    local is_expanded = ui_state.folder_state[node.path] ~= false  -- Default true
+    local fold_icon = is_expanded and icons.folder_open or icons.folder_closed
+    local line_num = #lines + 1
+    local line_text = string.format("%s%s %s/", indent_str, fold_icon, node.name)
+    table.insert(lines, line_text)
+
+    -- Store folder info
+    ui_state.folder_map[line_num] = {
+      path = node.path,
+      expanded = is_expanded,
+      parent = parent_path,
+      type = "folder",
+    }
+
+    -- Add highlight
+    table.insert(highlights, {
+      line = line_num - 1,
+      col_start = #indent_str,
+      col_end = #line_text,
+      hl_group = "EnhancedGrepFile",
+    })
+
+    -- Render children if expanded
+    if is_expanded then
+      -- Sort children: folders first, then files
+      local children = {}
+      for name, child in pairs(node.children) do
+        table.insert(children, {name = name, node = child})
+      end
+      table.sort(children, function(a, b)
+        if a.node.type == b.node.type then
+          return a.name < b.name
+        end
+        return a.node.type == "folder"
+      end)
+
+      for _, child in ipairs(children) do
+        render_tree_node(child.node, indent + 1, lines, highlights, node.path)
+      end
+    end
+
+  elseif node.type == "file" then
+    -- Render file
+    local saved_fold_state = state.get_fold_state(node.path)
+    local is_expanded = saved_fold_state == true  -- Default false for files
+    local fold_icon = is_expanded and icons.expanded or icons.collapsed
+    local file_icon = get_file_icon(node.name)
+    local line_num = #lines + 1
+    local line_text = string.format("%s%s %s %s (%d)",
+      indent_str, fold_icon, file_icon, node.name, #node.matches)
+    table.insert(lines, line_text)
+
+    -- Store file info
+    ui_state.file_map[line_num] = {
+      file = node.path,
+      expanded = is_expanded,
+      match_count = #node.matches,
+      parent = parent_path,
+      type = "file",
+    }
+
+    -- Add highlight
+    table.insert(highlights, {
+      line = line_num - 1,
+      col_start = #indent_str,
+      col_end = #line_text,
+      hl_group = "EnhancedGrepFile",
+    })
+
+    -- Render matches if expanded
+    if is_expanded then
+      for _, match in ipairs(node.matches) do
+        local match_line = #lines + 1
+        local match_text = string.format("%s%sL%d: %s",
+          indent_str .. "  ",
+          icons.match,
+          match.line_number,
+          match.text:gsub("^%s+", ""):gsub("%s+$", "")
+        )
+
+        -- Truncate long lines
+        if #match_text > 100 then
+          match_text = match_text:sub(1, 97) .. "..."
+        end
+
+        table.insert(lines, match_text)
+
+        -- Store match info
+        ui_state.match_map[match_line] = {
+          file = node.path,
+          line_number = match.line_number,
+          column = match.column,
+          parent = node.path,
+        }
+
+        -- Add highlights
+        local line_nr_start = #(indent_str .. "  " .. icons.match)
+        local line_nr_end = line_nr_start + #("L" .. match.line_number .. ": ")
+        table.insert(highlights, {
+          line = match_line - 1,
+          col_start = line_nr_start,
+          col_end = line_nr_end,
+          hl_group = "EnhancedGrepLineNr",
+        })
+      end
+    end
+  end
+end
+
+--- Render results in main buffer with folder hierarchy
 function M.render_results(results)
   if not ui_state.main_buf or not vim.api.nvim_buf_is_valid(ui_state.main_buf) then
     return
@@ -216,6 +398,7 @@ function M.render_results(results)
   ui_state.results = results or {}
   ui_state.file_map = {}
   ui_state.match_map = {}
+  ui_state.folder_map = {}
 
   local lines = {}
   local highlights = {}
@@ -235,77 +418,24 @@ function M.render_results(results)
     table.insert(lines, string.format("Results: %d files, %d matches", total_files, total_matches))
     table.insert(lines, "")
 
-    -- Render each file and its matches
-    for _, file_data in ipairs(ui_state.results) do
-      local file = file_data.path
-      local matches = file_data.matches
-      local file_line = #lines + 1
+    -- Build and render tree
+    local tree = build_folder_tree(ui_state.results)
 
-      -- Default to collapsed (false) if no saved state exists
-      local saved_fold_state = state.get_fold_state(file)
-      local is_expanded = saved_fold_state == true  -- Default false if nil
-
-      -- File header line
-      local fold_icon = is_expanded and icons.expanded or icons.collapsed
-      local file_line_text = string.format("%s %s (%d)", fold_icon, file, #matches)
-      table.insert(lines, file_line_text)
-
-      -- Store file info for navigation
-      ui_state.file_map[file_line] = {
-        file = file,
-        expanded = is_expanded,
-        match_count = #matches,
-      }
-
-      -- Add highlight for file line
-      table.insert(highlights, {
-        line = file_line - 1,
-        col_start = 0,
-        col_end = 2,
-        hl_group = "EnhancedGrepIcon",
-      })
-      table.insert(highlights, {
-        line = file_line - 1,
-        col_start = 2,
-        col_end = #file_line_text,
-        hl_group = "EnhancedGrepFile",
-      })
-
-      -- Render matches if expanded
-      if is_expanded then
-        for _, match in ipairs(matches) do
-          local match_line = #lines + 1
-          local match_text = string.format("%sL%d: %s",
-            icons.match,
-            match.line_number,
-            match.text:gsub("^%s+", ""):gsub("%s+$", "")
-          )
-
-          -- Truncate long lines
-          if #match_text > 80 then
-            match_text = match_text:sub(1, 77) .. "..."
-          end
-
-          table.insert(lines, match_text)
-
-          -- Store match info for navigation
-          ui_state.match_map[match_line] = {
-            file = file,
-            line_number = match.line_number,
-            column = match.column,
-          }
-
-          -- Add highlights for match line
-          local line_nr_start = #icons.match
-          local line_nr_end = line_nr_start + #("L" .. match.line_number .. ": ")
-          table.insert(highlights, {
-            line = match_line - 1,
-            col_start = line_nr_start,
-            col_end = line_nr_end,
-            hl_group = "EnhancedGrepLineNr",
-          })
-        end
+    -- Sort root level nodes
+    local root_nodes = {}
+    for name, node in pairs(tree) do
+      table.insert(root_nodes, {name = name, node = node})
+    end
+    table.sort(root_nodes, function(a, b)
+      if a.node.type == b.node.type then
+        return a.name < b.name
       end
+      return a.node.type == "folder"
+    end)
+
+    -- Render each root node
+    for _, item in ipairs(root_nodes) do
+      render_tree_node(item.node, 0, lines, highlights, nil)
     end
   end
 
@@ -332,7 +462,7 @@ function M.render_results(results)
   end
 end
 
---- Toggle fold at cursor in main window
+--- Toggle fold at cursor (Right arrow = expand, works for folders and files)
 function M.toggle_fold()
   if not ui_state.main_buf then
     return
@@ -341,14 +471,58 @@ function M.toggle_fold()
   local cursor = vim.api.nvim_win_get_cursor(ui_state.main_win)
   local line = cursor[1]
 
+  -- Check if it's a folder
+  local folder_data = ui_state.folder_map[line]
+  if folder_data then
+    ui_state.folder_state[folder_data.path] = not folder_data.expanded
+    M.render_results(ui_state.results)
+    return
+  end
+
+  -- Check if it's a file
   local file_data = ui_state.file_map[line]
   if file_data then
     state.toggle_fold_state(file_data.file)
     M.render_results(ui_state.results)
+    return
   end
 end
 
---- Jump to match under cursor
+--- Collapse parent (Left arrow = collapse parent from child)
+function M.collapse_parent()
+  if not ui_state.main_buf then
+    return
+  end
+
+  local cursor = vim.api.nvim_win_get_cursor(ui_state.main_win)
+  local line = cursor[1]
+
+  -- If on a match, collapse the parent file
+  local match_data = ui_state.match_map[line]
+  if match_data and match_data.parent then
+    state.set_fold_state(match_data.parent, false)
+    M.render_results(ui_state.results)
+    return
+  end
+
+  -- If on a file, collapse the parent folder
+  local file_data = ui_state.file_map[line]
+  if file_data and file_data.parent then
+    ui_state.folder_state[file_data.parent] = false
+    M.render_results(ui_state.results)
+    return
+  end
+
+  -- If on a folder, collapse it
+  local folder_data = ui_state.folder_map[line]
+  if folder_data then
+    ui_state.folder_state[folder_data.path] = false
+    M.render_results(ui_state.results)
+    return
+  end
+end
+
+--- Jump to match or file under cursor
 function M.jump_to_match()
   if not ui_state.main_buf then
     return
@@ -357,12 +531,22 @@ function M.jump_to_match()
   local cursor = vim.api.nvim_win_get_cursor(ui_state.main_win)
   local line = cursor[1]
 
+  -- Check if it's a match
   local match_data = ui_state.match_map[line]
   if match_data then
     M.close()
     vim.cmd("edit " .. vim.fn.fnameescape(match_data.file))
     vim.api.nvim_win_set_cursor(0, {match_data.line_number, match_data.column})
     vim.cmd("normal! zz")
+    return
+  end
+
+  -- Check if it's a file
+  local file_data = ui_state.file_map[line]
+  if file_data then
+    M.close()
+    vim.cmd("edit " .. vim.fn.fnameescape(file_data.file))
+    return
   end
 end
 
@@ -895,11 +1079,21 @@ function M.create_picker(opts)
   setup_label_protection(ui_state.include_buf, "Include Patterns:")
   setup_label_protection(ui_state.exclude_buf, "Exclude Patterns:")
 
+  -- Enable mouse support in results window
+  vim.api.nvim_win_set_option(ui_state.main_win, "mouse", "a")
+
   -- Set up main buffer keymaps
   local main_keymaps = {
-    {"n", "<CR>", M.jump_to_match, {desc = "Jump to match"}},
-    {"n", "<Right>", M.toggle_fold, {desc = "Expand/collapse fold"}},
-    {"n", "<Left>", M.toggle_fold, {desc = "Expand/collapse fold"}},
+    {"n", "<CR>", M.jump_to_match, {desc = "Jump to match or open file"}},
+    {"n", "<2-LeftMouse>", M.jump_to_match, {desc = "Double-click to open"}},
+    {"n", "<LeftMouse>", function()
+      local mouse_pos = vim.fn.getmousepos()
+      if mouse_pos.winid == ui_state.main_win then
+        vim.api.nvim_win_set_cursor(ui_state.main_win, {mouse_pos.line, mouse_pos.column - 1})
+      end
+    end, {desc = "Click to navigate"}},
+    {"n", "<Right>", M.toggle_fold, {desc = "Expand folder/file"}},
+    {"n", "<Left>", M.collapse_parent, {desc = "Collapse parent"}},
     {"n", "za", M.toggle_fold, {desc = "Toggle fold"}},
     {"n", "zR", M.expand_all, {desc = "Expand all"}},
     {"n", "zM", M.collapse_all, {desc = "Collapse all"}},
