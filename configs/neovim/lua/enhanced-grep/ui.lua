@@ -477,31 +477,8 @@ function M.toggle_no_tests()
   local new_value = not current.ignore_tests
   state.update({ignore_tests = new_value})
 
-  -- Update exclude patterns
-  local test_patterns = {
-    "/test/*", "/tests/*", "/spec/*", "/__tests__/*",
-    "*_test.*", "*_spec.*", "test_*.*", "*.test.*", "*.spec.*"
-  }
-
-  if new_value then
-    -- Add test patterns to exclusions
-    for _, pattern in ipairs(test_patterns) do
-      if not vim.tbl_contains(ui_state.exclude_patterns, pattern) then
-        table.insert(ui_state.exclude_patterns, pattern)
-      end
-    end
-  else
-    -- Remove test patterns from exclusions
-    ui_state.exclude_patterns = vim.tbl_filter(function(p)
-      return not vim.tbl_contains(test_patterns, p)
-    end, ui_state.exclude_patterns)
-  end
-
-  -- Update exclude input buffer
-  if ui_state.exclude_buf and vim.api.nvim_buf_is_valid(ui_state.exclude_buf) then
-    local exclude_str = patterns.format_patterns(ui_state.exclude_patterns)
-    vim.api.nvim_buf_set_lines(ui_state.exclude_buf, 0, -1, false, {exclude_str})
-  end
+  -- Don't modify the exclude input buffer - the toggle works behind the scenes
+  -- The test patterns will be added during ripgrep command building
 
   render_options()
   if ui_state.current_search ~= "" then
@@ -513,23 +490,8 @@ end
 function M.toggle_ruby_only()
   ui_state.ruby_only = not ui_state.ruby_only
 
-  if ui_state.ruby_only then
-    -- Add *.rb to include patterns if not present
-    if not vim.tbl_contains(ui_state.include_patterns, "*.rb") then
-      table.insert(ui_state.include_patterns, "*.rb")
-    end
-  else
-    -- Remove *.rb from include patterns
-    ui_state.include_patterns = vim.tbl_filter(function(p)
-      return p ~= "*.rb"
-    end, ui_state.include_patterns)
-  end
-
-  -- Update include input buffer
-  if ui_state.include_buf and vim.api.nvim_buf_is_valid(ui_state.include_buf) then
-    local include_str = patterns.format_patterns(ui_state.include_patterns)
-    vim.api.nvim_buf_set_lines(ui_state.include_buf, 0, -1, false, {include_str})
-  end
+  -- Don't modify the include input buffer - the toggle works behind the scenes
+  -- The Ruby pattern will be added during ripgrep command building
 
   render_options()
   if ui_state.current_search ~= "" then
@@ -620,21 +582,21 @@ trigger_search = function()
   local prev_include = ui_state.current_include
   local prev_exclude = ui_state.current_exclude
 
-  -- Get search pattern
-  local pattern_lines = vim.api.nvim_buf_get_lines(ui_state.input_buf, 0, 1, false)
+  -- Get search pattern (from line 2, index 1)
+  local pattern_lines = vim.api.nvim_buf_get_lines(ui_state.input_buf, 1, 2, false)
   local pattern = (pattern_lines[1] or ""):gsub("^%s+", ""):gsub("%s+$", "")
 
-  -- Get include patterns
+  -- Get include patterns (from line 2, index 1)
   local include_str = ""
   if ui_state.include_buf and vim.api.nvim_buf_is_valid(ui_state.include_buf) then
-    local include_lines = vim.api.nvim_buf_get_lines(ui_state.include_buf, 0, 1, false)
+    local include_lines = vim.api.nvim_buf_get_lines(ui_state.include_buf, 1, 2, false)
     include_str = (include_lines[1] or ""):gsub("^%s+", ""):gsub("%s+$", "")
   end
 
-  -- Get exclude patterns
+  -- Get exclude patterns (from line 2, index 1)
   local exclude_str = ""
   if ui_state.exclude_buf and vim.api.nvim_buf_is_valid(ui_state.exclude_buf) then
-    local exclude_lines = vim.api.nvim_buf_get_lines(ui_state.exclude_buf, 0, 1, false)
+    local exclude_lines = vim.api.nvim_buf_get_lines(ui_state.exclude_buf, 1, 2, false)
     exclude_str = (exclude_lines[1] or ""):gsub("^%s+", ""):gsub("%s+$", "")
   end
 
@@ -657,9 +619,34 @@ trigger_search = function()
 
   -- Call the search callback
   if ui_state.on_search_callback then
+    -- Merge toggle patterns with user-typed patterns
+    local final_include = vim.deepcopy(ui_state.include_patterns)
+    local final_exclude = vim.deepcopy(ui_state.exclude_patterns)
+
+    -- Add test patterns if "no tests" is enabled
+    local current = state.get()
+    if current.ignore_tests then
+      local test_patterns = {
+        "/test/*", "/tests/*", "/spec/*", "/__tests__/*",
+        "*_test.*", "*_spec.*", "test_*.*", "*.test.*", "*.spec.*"
+      }
+      for _, test_pattern in ipairs(test_patterns) do
+        if not vim.tbl_contains(final_exclude, test_pattern) then
+          table.insert(final_exclude, test_pattern)
+        end
+      end
+    end
+
+    -- Add *.rb pattern if "ruby only" is enabled
+    if ui_state.ruby_only then
+      if not vim.tbl_contains(final_include, "*.rb") then
+        table.insert(final_include, "*.rb")
+      end
+    end
+
     ui_state.on_search_callback(pattern, {
-      include_patterns = ui_state.include_patterns,
-      exclude_patterns = ui_state.exclude_patterns,
+      include_patterns = final_include,
+      exclude_patterns = final_exclude,
     })
   end
 end
@@ -733,31 +720,40 @@ function M.create_picker(opts)
   local col = math.floor((vim.o.columns - total_width) / 2)
 
   -- Layout calculations
-  local input_section_height = 8  -- 4 windows * 2 (height + border) = 8
+  local input_section_height = 11  -- 3 input windows (2 lines + border) + 1 options window = 11
   local results_height = total_height - input_section_height
   local results_width = math.floor(total_width * 0.5)
   local preview_width = total_width - results_width - 1  -- -1 for border
 
-  -- Create search pattern buffer
+  -- Create search pattern buffer with label line
   ui_state.input_buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_option(ui_state.input_buf, "bufhidden", "wipe")
   vim.api.nvim_buf_set_option(ui_state.input_buf, "buftype", "")
   vim.api.nvim_buf_set_option(ui_state.input_buf, "modifiable", true)
-  vim.api.nvim_buf_set_lines(ui_state.input_buf, 0, -1, false, {opts.default_pattern or ""})
+  vim.api.nvim_buf_set_lines(ui_state.input_buf, 0, -1, false, {"Search Pattern:", opts.default_pattern or ""})
+  vim.api.nvim_buf_call(ui_state.input_buf, function()
+    vim.fn.matchadd("Comment", "\\%1l")  -- Highlight first line as comment
+  end)
 
-  -- Create include pattern buffer
+  -- Create include pattern buffer with label line
   ui_state.include_buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_option(ui_state.include_buf, "bufhidden", "wipe")
   vim.api.nvim_buf_set_option(ui_state.include_buf, "buftype", "")
   vim.api.nvim_buf_set_option(ui_state.include_buf, "modifiable", true)
-  vim.api.nvim_buf_set_lines(ui_state.include_buf, 0, -1, false, {patterns.format_patterns(ui_state.include_patterns)})
+  vim.api.nvim_buf_set_lines(ui_state.include_buf, 0, -1, false, {"Include Patterns:", patterns.format_patterns(ui_state.include_patterns)})
+  vim.api.nvim_buf_call(ui_state.include_buf, function()
+    vim.fn.matchadd("Comment", "\\%1l")
+  end)
 
-  -- Create exclude pattern buffer
+  -- Create exclude pattern buffer with label line
   ui_state.exclude_buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_option(ui_state.exclude_buf, "bufhidden", "wipe")
   vim.api.nvim_buf_set_option(ui_state.exclude_buf, "buftype", "")
   vim.api.nvim_buf_set_option(ui_state.exclude_buf, "modifiable", true)
-  vim.api.nvim_buf_set_lines(ui_state.exclude_buf, 0, -1, false, {patterns.format_patterns(ui_state.exclude_patterns)})
+  vim.api.nvim_buf_set_lines(ui_state.exclude_buf, 0, -1, false, {"Exclude Patterns:", patterns.format_patterns(ui_state.exclude_patterns)})
+  vim.api.nvim_buf_call(ui_state.exclude_buf, function()
+    vim.fn.matchadd("Comment", "\\%1l")
+  end)
 
   -- Create options buffer
   ui_state.options_buf = vim.api.nvim_create_buf(false, true)
@@ -775,44 +771,40 @@ function M.create_picker(opts)
   vim.api.nvim_buf_set_option(ui_state.preview_buf, "bufhidden", "wipe")
   vim.api.nvim_buf_set_option(ui_state.preview_buf, "modifiable", false)
 
-  -- Create input windows with proper borders
+  -- Create input windows with proper borders (now 2 lines high with labels)
   -- Search Pattern window
   ui_state.input_win = vim.api.nvim_open_win(ui_state.input_buf, true, {
     relative = "editor",
     width = total_width,
-    height = 1,
+    height = 2,
     row = row,
     col = col,
     style = "minimal",
     border = {"╭", "─", "╮", "│", "╯", "─", "╰", "│"},
-    title = " Search Pattern ",
-    title_pos = "left",
   })
+  -- Position cursor on line 2 (the input line)
+  vim.api.nvim_win_set_cursor(ui_state.input_win, {2, 0})
 
   -- Include pattern window
   ui_state.include_win = vim.api.nvim_open_win(ui_state.include_buf, false, {
     relative = "editor",
     width = total_width,
-    height = 1,
-    row = row + 2,  -- +2 for border of previous window
+    height = 2,
+    row = row + 3,  -- +3 for 2 lines + 1 border of previous window
     col = col,
     style = "minimal",
     border = {"╭", "─", "╮", "│", "╯", "─", "╰", "│"},
-    title = " Include Patterns ",
-    title_pos = "left",
   })
 
   -- Exclude pattern window
   ui_state.exclude_win = vim.api.nvim_open_win(ui_state.exclude_buf, false, {
     relative = "editor",
     width = total_width,
-    height = 1,
-    row = row + 4,  -- +2 for each previous window with border
+    height = 2,
+    row = row + 6,  -- +3 for each previous window (2 lines + border)
     col = col,
     style = "minimal",
     border = {"╭", "─", "╮", "│", "╯", "─", "╰", "│"},
-    title = " Exclude Patterns ",
-    title_pos = "left",
   })
 
   -- Options window
@@ -820,7 +812,7 @@ function M.create_picker(opts)
     relative = "editor",
     width = total_width,
     height = 1,
-    row = row + 6,  -- +2 for each previous window with border
+    row = row + 9,  -- +3 for each previous 2-line window with border
     col = col,
     style = "minimal",
     border = {"╭", "─", "╮", "│", "╯", "─", "╰", "│"},
@@ -870,6 +862,38 @@ function M.create_picker(opts)
   setup_input_keymaps(ui_state.input_buf)
   setup_input_keymaps(ui_state.include_buf)
   setup_input_keymaps(ui_state.exclude_buf)
+
+  -- Protect label lines and position cursor on input buffers
+  local function setup_label_protection(buf, label_text)
+    vim.api.nvim_create_autocmd({"BufEnter", "WinEnter"}, {
+      buffer = buf,
+      callback = function()
+        -- Ensure cursor starts on line 2 (the input line)
+        local cursor = vim.api.nvim_win_get_cursor(0)
+        if cursor[1] == 1 then
+          vim.api.nvim_win_set_cursor(0, {2, cursor[2]})
+        end
+      end
+    })
+
+    vim.api.nvim_create_autocmd({"TextChanged", "TextChangedI"}, {
+      buffer = buf,
+      callback = function()
+        -- Restore label line if deleted
+        local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+        if #lines < 2 or lines[1] ~= label_text then
+          local current_input = lines[#lines] or ""
+          vim.api.nvim_buf_set_lines(buf, 0, -1, false, {label_text, current_input})
+          -- Reposition cursor on line 2
+          pcall(vim.api.nvim_win_set_cursor, 0, {2, #current_input})
+        end
+      end
+    })
+  end
+
+  setup_label_protection(ui_state.input_buf, "Search Pattern:")
+  setup_label_protection(ui_state.include_buf, "Include Patterns:")
+  setup_label_protection(ui_state.exclude_buf, "Exclude Patterns:")
 
   -- Set up main buffer keymaps
   local main_keymaps = {
