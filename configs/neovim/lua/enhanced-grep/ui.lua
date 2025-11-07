@@ -180,7 +180,16 @@ function M.update_preview_from_cursor()
     return
   end
 
-  local cursor = vim.api.nvim_win_get_cursor(ui_state.main_win)
+  -- Validate window is still valid
+  if not vim.api.nvim_win_is_valid(ui_state.main_win) then
+    return
+  end
+
+  local ok, cursor = pcall(vim.api.nvim_win_get_cursor, ui_state.main_win)
+  if not ok then
+    return
+  end
+
   local line = cursor[1]
 
   -- Check if cursor is on a match line
@@ -401,17 +410,21 @@ local function update_input_highlights()
   -- Update window highlights based on focus
   if ui_state.input_win and vim.api.nvim_win_is_valid(ui_state.input_win) then
     local hl = current_win == ui_state.input_win and "EnhancedGrepActiveInput" or "EnhancedGrepInactiveInput"
-    vim.api.nvim_win_set_option(ui_state.input_win, "winhl", "Normal:" .. hl)
+    -- Include FloatBorder and FloatTitle to preserve title rendering
+    vim.api.nvim_win_set_option(ui_state.input_win, "winhl",
+      "Normal:" .. hl .. ",FloatBorder:FloatBorder,FloatTitle:FloatTitle")
   end
 
   if ui_state.include_win and vim.api.nvim_win_is_valid(ui_state.include_win) then
     local hl = current_win == ui_state.include_win and "EnhancedGrepActiveInput" or "EnhancedGrepInactiveInput"
-    vim.api.nvim_win_set_option(ui_state.include_win, "winhl", "Normal:" .. hl)
+    vim.api.nvim_win_set_option(ui_state.include_win, "winhl",
+      "Normal:" .. hl .. ",FloatBorder:FloatBorder,FloatTitle:FloatTitle")
   end
 
   if ui_state.exclude_win and vim.api.nvim_win_is_valid(ui_state.exclude_win) then
     local hl = current_win == ui_state.exclude_win and "EnhancedGrepActiveInput" or "EnhancedGrepInactiveInput"
-    vim.api.nvim_win_set_option(ui_state.exclude_win, "winhl", "Normal:" .. hl)
+    vim.api.nvim_win_set_option(ui_state.exclude_win, "winhl",
+      "Normal:" .. hl .. ",FloatBorder:FloatBorder,FloatTitle:FloatTitle")
   end
 end
 
@@ -546,7 +559,7 @@ render_options = function()
   local case_icon = current.case_sensitive and icons.checked or icons.unchecked
 
   local line = string.format(
-    " %s No Tests (Press 1)   %s Ruby Only (Press 2)   %s Case Sensitive (Press 3)   Help (?)",
+    " %s No Tests (F1)   %s Ruby Only (F2)   %s Case Sensitive (F3)   Help (?)",
     no_tests_icon,
     ruby_only_icon,
     case_icon
@@ -569,15 +582,16 @@ function M.show_help()
     "",
     "Results Navigation:",
     "  <CR>           - Jump to match under cursor",
-    "  <Tab>/za       - Toggle fold for file",
+    "  <Right>/<Left> - Expand/collapse fold for file",
+    "  za             - Toggle fold",
     "  zR             - Expand all folds",
     "  zM             - Collapse all folds",
     "  i              - Return to search input",
     "",
     "Quick Options:",
-    "  1              - Toggle 'No Tests' filter",
-    "  2              - Toggle 'Ruby Only' filter",
-    "  3              - Toggle case sensitivity",
+    "  F1             - Toggle 'No Tests' filter",
+    "  F2             - Toggle 'Ruby Only' filter",
+    "  F3             - Toggle case sensitivity",
     "",
     "Actions:",
     "  <C-q>          - Send to quickfix list",
@@ -588,7 +602,8 @@ function M.show_help()
     "  - All inputs support live search (300ms delay)",
     "  - Use wildcards: *.rb, /test/*, **/*.lua",
     "  - Preview updates as you navigate results",
-    "  - Files are collapsed by default (press Tab to expand)",
+    "  - Files are collapsed by default (press Right arrow to expand)",
+    "  - F1-F3 work in both insert and normal mode",
   }
 
   vim.notify(table.concat(help_text, "\n"), vim.log.levels.INFO, {title = "Enhanced Grep Help"})
@@ -687,9 +702,12 @@ local function setup_input_keymaps(buf)
       M.close()
     end, {desc = "Close"}},
     {"n", "?", M.show_help, {desc = "Show help"}},
-    {"n", "1", M.toggle_no_tests, {desc = "Toggle no tests"}},
-    {"n", "2", M.toggle_ruby_only, {desc = "Toggle Ruby only"}},
-    {"n", "3", M.toggle_case_sensitive, {desc = "Toggle case sensitive"}},
+    {"n", "<F1>", M.toggle_no_tests, {desc = "Toggle no tests"}},
+    {"i", "<F1>", M.toggle_no_tests, {desc = "Toggle no tests"}},
+    {"n", "<F2>", M.toggle_ruby_only, {desc = "Toggle Ruby only"}},
+    {"i", "<F2>", M.toggle_ruby_only, {desc = "Toggle Ruby only"}},
+    {"n", "<F3>", M.toggle_case_sensitive, {desc = "Toggle case sensitive"}},
+    {"i", "<F3>", M.toggle_case_sensitive, {desc = "Toggle case sensitive"}},
   }
 
   for _, keymap in ipairs(keymaps) do
@@ -840,10 +858,13 @@ function M.create_picker(opts)
   vim.api.nvim_win_set_option(ui_state.preview_win, "wrap", false)
   vim.api.nvim_win_set_option(ui_state.preview_win, "number", true)
 
-  -- Set initial highlight for active input
-  vim.api.nvim_win_set_option(ui_state.input_win, "winhl", "Normal:EnhancedGrepActiveInput")
-  vim.api.nvim_win_set_option(ui_state.include_win, "winhl", "Normal:EnhancedGrepInactiveInput")
-  vim.api.nvim_win_set_option(ui_state.exclude_win, "winhl", "Normal:EnhancedGrepInactiveInput")
+  -- Set initial highlight for active input (preserve border and title)
+  vim.api.nvim_win_set_option(ui_state.input_win, "winhl",
+    "Normal:EnhancedGrepActiveInput,FloatBorder:FloatBorder,FloatTitle:FloatTitle")
+  vim.api.nvim_win_set_option(ui_state.include_win, "winhl",
+    "Normal:EnhancedGrepInactiveInput,FloatBorder:FloatBorder,FloatTitle:FloatTitle")
+  vim.api.nvim_win_set_option(ui_state.exclude_win, "winhl",
+    "Normal:EnhancedGrepInactiveInput,FloatBorder:FloatBorder,FloatTitle:FloatTitle")
 
   -- Set up keymaps for all input buffers
   setup_input_keymaps(ui_state.input_buf)
@@ -853,7 +874,8 @@ function M.create_picker(opts)
   -- Set up main buffer keymaps
   local main_keymaps = {
     {"n", "<CR>", M.jump_to_match, {desc = "Jump to match"}},
-    {"n", "<Tab>", M.toggle_fold, {desc = "Toggle fold"}},
+    {"n", "<Right>", M.toggle_fold, {desc = "Expand/collapse fold"}},
+    {"n", "<Left>", M.toggle_fold, {desc = "Expand/collapse fold"}},
     {"n", "za", M.toggle_fold, {desc = "Toggle fold"}},
     {"n", "zR", M.expand_all, {desc = "Expand all"}},
     {"n", "zM", M.collapse_all, {desc = "Collapse all"}},
@@ -863,9 +885,9 @@ function M.create_picker(opts)
       update_input_highlights()
       vim.schedule(function() vim.cmd("redraw") end)
     end, {desc = "Edit search"}},
-    {"n", "1", M.toggle_no_tests, {desc = "Toggle no tests filter"}},
-    {"n", "2", M.toggle_ruby_only, {desc = "Toggle Ruby only"}},
-    {"n", "3", M.toggle_case_sensitive, {desc = "Toggle case sensitive"}},
+    {"n", "<F1>", M.toggle_no_tests, {desc = "Toggle no tests filter"}},
+    {"n", "<F2>", M.toggle_ruby_only, {desc = "Toggle Ruby only"}},
+    {"n", "<F3>", M.toggle_case_sensitive, {desc = "Toggle case sensitive"}},
     {"n", "?", M.show_help, {desc = "Show help"}},
     {"n", "q", M.close, {desc = "Close"}},
     {"n", "<Esc>", M.close, {desc = "Close"}},
