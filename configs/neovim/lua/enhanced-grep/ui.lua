@@ -546,7 +546,7 @@ render_options = function()
   local case_icon = current.case_sensitive and icons.checked or icons.unchecked
 
   local line = string.format(
-    " %s No Tests [1]   %s Ruby Only [2]   %s Case Sensitive [3]   [?] Help",
+    " %s No Tests (Press 1)   %s Ruby Only (Press 2)   %s Case Sensitive (Press 3)   Help (?)",
     no_tests_icon,
     ruby_only_icon,
     case_icon
@@ -600,32 +600,40 @@ trigger_search = function()
     return
   end
 
+  -- Save previous values for comparison
+  local prev_search = ui_state.current_search
+  local prev_include = ui_state.current_include
+  local prev_exclude = ui_state.current_exclude
+
   -- Get search pattern
   local pattern_lines = vim.api.nvim_buf_get_lines(ui_state.input_buf, 0, 1, false)
   local pattern = (pattern_lines[1] or ""):gsub("^%s+", ""):gsub("%s+$", "")
 
   -- Get include patterns
+  local include_str = ""
   if ui_state.include_buf and vim.api.nvim_buf_is_valid(ui_state.include_buf) then
     local include_lines = vim.api.nvim_buf_get_lines(ui_state.include_buf, 0, 1, false)
-    local include_str = (include_lines[1] or ""):gsub("^%s+", ""):gsub("%s+$", "")
-    ui_state.current_include = include_str
-    ui_state.include_patterns = patterns.parse_patterns(include_str)
+    include_str = (include_lines[1] or ""):gsub("^%s+", ""):gsub("%s+$", "")
   end
 
   -- Get exclude patterns
+  local exclude_str = ""
   if ui_state.exclude_buf and vim.api.nvim_buf_is_valid(ui_state.exclude_buf) then
     local exclude_lines = vim.api.nvim_buf_get_lines(ui_state.exclude_buf, 0, 1, false)
-    local exclude_str = (exclude_lines[1] or ""):gsub("^%s+", ""):gsub("%s+$", "")
-    ui_state.current_exclude = exclude_str
-    ui_state.exclude_patterns = patterns.parse_patterns(exclude_str)
+    exclude_str = (exclude_lines[1] or ""):gsub("^%s+", ""):gsub("%s+$", "")
   end
 
   -- Check if anything changed
-  if pattern == ui_state.current_search then
+  if pattern == prev_search and include_str == prev_include and exclude_str == prev_exclude then
     return
   end
 
+  -- Update state with new values
   ui_state.current_search = pattern
+  ui_state.current_include = include_str
+  ui_state.current_exclude = exclude_str
+  ui_state.include_patterns = patterns.parse_patterns(include_str)
+  ui_state.exclude_patterns = patterns.parse_patterns(exclude_str)
 
   if pattern == "" then
     M.render_results({})
@@ -749,8 +757,8 @@ function M.create_picker(opts)
   vim.api.nvim_buf_set_option(ui_state.preview_buf, "bufhidden", "wipe")
   vim.api.nvim_buf_set_option(ui_state.preview_buf, "modifiable", false)
 
-  -- Create stacked input windows with connected borders
-  -- Search Pattern window (top)
+  -- Create input windows with proper borders
+  -- Search Pattern window
   ui_state.input_win = vim.api.nvim_open_win(ui_state.input_buf, true, {
     relative = "editor",
     width = total_width,
@@ -758,12 +766,12 @@ function M.create_picker(opts)
     row = row,
     col = col,
     style = "minimal",
-    border = {"╭", "─", "╮", "│", "├", "─", "┤", "│"},
+    border = {"╭", "─", "╮", "│", "╯", "─", "╰", "│"},
     title = " Search Pattern ",
     title_pos = "left",
   })
 
-  -- Include pattern window (middle)
+  -- Include pattern window
   ui_state.include_win = vim.api.nvim_open_win(ui_state.include_buf, false, {
     relative = "editor",
     width = total_width,
@@ -771,12 +779,12 @@ function M.create_picker(opts)
     row = row + 2,  -- +2 for border of previous window
     col = col,
     style = "minimal",
-    border = {"├", "─", "┤", "│", "├", "─", "┤", "│"},
+    border = {"╭", "─", "╮", "│", "╯", "─", "╰", "│"},
     title = " Include Patterns ",
     title_pos = "left",
   })
 
-  -- Exclude pattern window (middle)
+  -- Exclude pattern window
   ui_state.exclude_win = vim.api.nvim_open_win(ui_state.exclude_buf, false, {
     relative = "editor",
     width = total_width,
@@ -784,12 +792,12 @@ function M.create_picker(opts)
     row = row + 4,  -- +2 for each previous window with border
     col = col,
     style = "minimal",
-    border = {"├", "─", "┤", "│", "├", "─", "┤", "│"},
+    border = {"╭", "─", "╮", "│", "╯", "─", "╰", "│"},
     title = " Exclude Patterns ",
     title_pos = "left",
   })
 
-  -- Options window (bottom)
+  -- Options window
   ui_state.options_win = vim.api.nvim_open_win(ui_state.options_buf, false, {
     relative = "editor",
     width = total_width,
@@ -797,7 +805,7 @@ function M.create_picker(opts)
     row = row + 6,  -- +2 for each previous window with border
     col = col,
     style = "minimal",
-    border = {"├", "─", "┤", "│", "╰", "─", "╯", "│"},
+    border = {"╭", "─", "╮", "│", "╯", "─", "╰", "│"},
   })
 
   -- Create results window (left side, below input section)
