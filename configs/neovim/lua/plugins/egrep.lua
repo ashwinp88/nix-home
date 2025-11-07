@@ -1,11 +1,11 @@
--- Enhanced Grep Plugin Specification
+-- egrep.nvim Plugin Specification
 return {
-  dir = vim.fn.stdpath("config") .. "/lua/enhanced-grep",
-  name = "enhanced-grep",
+  dir = "/Users/ashwin/Code/egrep.nvim",
+  name = "egrep.nvim",
   lazy = false,
 
   config = function()
-    require("enhanced-grep").setup({
+    require("egrep").setup({
       defaults = {
         ignore_tests = true,
         use_gitignore = true,
@@ -25,7 +25,7 @@ return {
     {
       "<leader>sE",
       function()
-        require("enhanced-grep").grep()
+        require("egrep").grep()
       end,
       desc = "Enhanced Grep",
       nowait = true,
@@ -33,7 +33,7 @@ return {
     {
       "<leader>sT",
       function()
-        require("enhanced-grep").grep_no_tests()
+        require("egrep").grep_no_tests()
       end,
       desc = "Enhanced Grep (No Tests)",
       nowait = true,
@@ -41,7 +41,7 @@ return {
     {
       "<leader>sP",
       function()
-        require("enhanced-grep").select_preset()
+        require("egrep").select_preset()
       end,
       desc = "Enhanced Grep (Preset)",
       nowait = true,
@@ -49,7 +49,7 @@ return {
     {
       "<leader>sW",
       function()
-        require("enhanced-grep").grep_word()
+        require("egrep").grep_word()
       end,
       desc = "Enhanced Grep Word",
       nowait = true,
@@ -57,7 +57,7 @@ return {
     {
       "<leader>s<leader>",
       function()
-        require("enhanced-grep").repeat_last()
+        require("egrep").repeat_last()
       end,
       desc = "Repeat Last Search",
       nowait = true,
