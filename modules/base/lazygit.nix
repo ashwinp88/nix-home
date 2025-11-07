@@ -6,10 +6,12 @@
     settings = {
       git = {
         autoFetch = false;
-        pagers = {
-          diff = "delta --dark --paging=never --line-numbers";
-          show = "delta --dark --paging=never --line-numbers";
-        };
+        pagers = [
+          {
+            colorArg = "always";
+            pager = "delta --dark --paging=never --line-numbers";
+          }
+        ];
       };
 
       gui = {
