@@ -34,17 +34,14 @@ function M.setup(user_config)
 
   -- Create user commands
   vim.api.nvim_create_user_command("EnhancedGrep", function(opts)
-    M.grep(opts.args)
+    M.grep(opts.args ~= "" and opts.args or nil)
   end, {
     nargs = "?",
     desc = "Enhanced grep search",
-    complete = function()
-      return {}
-    end,
   })
 
   vim.api.nvim_create_user_command("EnhancedGrepNoTests", function(opts)
-    M.grep_no_tests(opts.args)
+    M.grep_no_tests(opts.args ~= "" and opts.args or nil)
   end, {
     nargs = "?",
     desc = "Enhanced grep search (exclude tests)",
@@ -58,7 +55,6 @@ function M.setup(user_config)
     complete = function(arg_lead, cmdline, cursor_pos)
       local args = vim.split(cmdline, "%s+")
       if #args == 2 then
-        -- Complete preset names
         local preset_keys = presets.get_ordered_keys()
         return vim.tbl_filter(function(key)
           return key:match("^" .. vim.pesc(arg_lead))
@@ -91,53 +87,13 @@ local function build_search_opts(overrides)
   return opts
 end
 
---- Prompt user for search pattern and options
---- @param callback function Callback with pattern and options
-local function prompt_search(callback, default_pattern)
-  -- Input prompt for search pattern
-  vim.ui.input({
-    prompt = "Search pattern: ",
-    default = default_pattern or state.get().last_search or "",
-  }, function(pattern)
-    if not pattern or pattern == "" then
-      return
-    end
-
-    -- Input for include patterns
-    vim.ui.input({
-      prompt = "Include patterns (space-separated): ",
-      default = patterns.format_patterns(state.get().last_include or {}),
-    }, function(include_str)
-      -- Input for exclude patterns
-      vim.ui.input({
-        prompt = "Exclude patterns (space-separated): ",
-        default = patterns.format_patterns(state.get().last_exclude or {}),
-      }, function(exclude_str)
-        local include_pats = patterns.parse_patterns(include_str or "")
-        local exclude_pats = patterns.parse_patterns(exclude_str or "")
-
-        -- Update state
-        state.update({
-          last_search = pattern,
-          last_include = include_pats,
-          last_exclude = exclude_pats,
-        })
-
-        callback(pattern, {
-          include_patterns = include_pats,
-          exclude_patterns = exclude_pats,
-        })
-      end)
-    end)
-  end)
-end
-
---- Execute search and display results
+--- Execute search and update UI with results
 --- @param pattern string Search pattern
 --- @param opts table Search options
 local function execute_search(pattern, opts)
-  -- Show loading message
-  vim.notify("Searching for: " .. pattern, vim.log.levels.INFO)
+  if not pattern or pattern == "" then
+    return
+  end
 
   -- Build search options
   local search_opts = build_search_opts(opts)
@@ -147,43 +103,46 @@ local function execute_search(pattern, opts)
     vim.schedule(function()
       if not result.success then
         vim.notify("Search failed: " .. (result.error or "Unknown error"), vim.log.levels.ERROR)
+        ui.render_results({})
         return
       end
 
       if #result.results == 0 then
-        vim.notify("No matches found", vim.log.levels.WARN)
+        ui.render_results({})
         return
       end
 
       -- Add to history
       state.add_to_history(pattern, search_opts.include_patterns, search_opts.exclude_patterns)
 
-      -- Display results in floating window
-      ui.create_results_window(result.results, {
-        width = math.floor(vim.o.columns * M.config.window.width),
-        height = math.floor(vim.o.lines * M.config.window.height),
-      })
+      -- Update UI with results
+      ui.render_results(result.results)
     end)
   end)
 end
 
---- Main grep function with interactive prompts
---- @param pattern string|nil Optional pattern to search for
-function M.grep(pattern)
-  if pattern and pattern ~= "" then
-    -- Direct search with pattern
-    execute_search(pattern, {})
-  else
-    -- Interactive mode
-    prompt_search(function(pat, opts)
-      execute_search(pat, opts)
-    end)
-  end
+--- Main grep function with unified picker UI
+--- @param default_pattern string|nil Optional default pattern
+--- @param opts table|nil Search options
+function M.grep(default_pattern, opts)
+  opts = opts or {}
+
+  -- Create the picker with search callback
+  ui.create_picker({
+    default_pattern = default_pattern,
+    width = math.floor(vim.o.columns * M.config.window.width),
+    height = math.floor(vim.o.lines * M.config.window.height),
+    include_patterns = opts.include_patterns,
+    exclude_patterns = opts.exclude_patterns,
+    on_search = function(pattern, search_opts)
+      execute_search(pattern, search_opts)
+    end,
+  })
 end
 
 --- Grep excluding test files
---- @param pattern string|nil Optional pattern to search for
-function M.grep_no_tests(pattern)
+--- @param default_pattern string|nil Optional default pattern
+function M.grep_no_tests(default_pattern)
   local test_excludes = {
     "/test/*",
     "/tests/*",
@@ -196,40 +155,25 @@ function M.grep_no_tests(pattern)
     "*.spec.*",
   }
 
-  if pattern and pattern ~= "" then
-    execute_search(pattern, {exclude_patterns = test_excludes})
-  else
-    prompt_search(function(pat, opts)
-      -- Merge with test excludes
-      local exclude_pats = vim.list_extend(vim.deepcopy(test_excludes), opts.exclude_patterns or {})
-      opts.exclude_patterns = exclude_pats
-      execute_search(pat, opts)
-    end)
-  end
+  M.grep(default_pattern, {
+    exclude_patterns = test_excludes,
+  })
 end
 
 --- Grep with a preset
 --- @param preset_key string Preset key
---- @param pattern string|nil Optional pattern to search for
-function M.grep_with_preset(preset_key, pattern)
+--- @param default_pattern string|nil Optional default pattern
+function M.grep_with_preset(preset_key, default_pattern)
   local preset = presets.get(preset_key)
   if not preset then
     vim.notify("Preset not found: " .. preset_key, vim.log.levels.ERROR)
     return
   end
 
-  local opts = {
+  M.grep(default_pattern, {
     include_patterns = preset.include,
     exclude_patterns = preset.exclude,
-  }
-
-  if pattern and pattern ~= "" then
-    execute_search(pattern, opts)
-  else
-    prompt_search(function(pat, _)
-      execute_search(pat, opts)
-    end, "")
-  end
+  })
 end
 
 --- Grep for word under cursor
@@ -256,13 +200,17 @@ end
 
 --- Repeat last search
 function M.repeat_last()
-  local last = state.get().last_search
+  local saved = state.get()
+  local last = saved.last_search
   if not last or last == "" then
     vim.notify("No previous search", vim.log.levels.WARN)
     return
   end
 
-  execute_search(last, {})
+  M.grep(last, {
+    include_patterns = saved.last_include,
+    exclude_patterns = saved.last_exclude,
+  })
 end
 
 --- Select from preset list
