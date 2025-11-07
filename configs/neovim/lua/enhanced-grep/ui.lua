@@ -78,12 +78,12 @@ local function render_header(include_pat, exclude_pat, no_tests)
   local include_str = patterns.format_patterns(include_pat)
   local exclude_str = patterns.format_patterns(exclude_pat)
 
-  table.insert(lines, string.format("%s No Tests  Include: %s  Exclude: %s",
+  table.insert(lines, string.format("%s No Tests [C-t]  Include: %s [C-i]  Exclude: %s [C-e]  Help: [?]",
     test_icon,
     include_str ~= "" and include_str or "(none)",
     exclude_str ~= "" and exclude_str or "(none)"
   ))
-  table.insert(lines, string.rep("─", 80))
+  table.insert(lines, string.rep("─", 100))
 
   return lines
 end
@@ -284,14 +284,114 @@ function M.to_quickfix()
   vim.notify(string.format("Exported %d matches to quickfix", #qf_list), vim.log.levels.INFO)
 end
 
+-- Forward declaration for trigger_search
+local trigger_search
+
+--- Toggle "No Tests" filter
+function M.toggle_no_tests()
+  local current = state.get()
+  local new_value = not current.ignore_tests
+  state.update({ignore_tests = new_value})
+
+  -- Update exclude patterns
+  local test_patterns = {
+    "/test/*", "/tests/*", "/spec/*", "/__tests__/*",
+    "*_test.*", "*_spec.*", "test_*.*", "*.test.*", "*.spec.*"
+  }
+
+  if new_value then
+    -- Add test patterns to exclusions
+    for _, pattern in ipairs(test_patterns) do
+      if not vim.tbl_contains(ui_state.exclude_patterns, pattern) then
+        table.insert(ui_state.exclude_patterns, pattern)
+      end
+    end
+  else
+    -- Remove test patterns from exclusions
+    ui_state.exclude_patterns = vim.tbl_filter(function(p)
+      return not vim.tbl_contains(test_patterns, p)
+    end, ui_state.exclude_patterns)
+  end
+
+  -- Re-render and re-search
+  M.render_results(ui_state.results)
+  if ui_state.current_search ~= "" then
+    trigger_search()
+  end
+end
+
+--- Edit include patterns
+function M.edit_include_patterns()
+  local current = patterns.format_patterns(ui_state.include_patterns)
+  vim.ui.input({
+    prompt = "Include patterns (space-separated, e.g. *.lua *.vim): ",
+    default = current,
+  }, function(input)
+    if input then
+      ui_state.include_patterns = patterns.parse_patterns(input)
+      M.render_results(ui_state.results)
+      if ui_state.current_search ~= "" then
+        trigger_search()
+      end
+    end
+  end)
+end
+
+--- Edit exclude patterns
+function M.edit_exclude_patterns()
+  local current = patterns.format_patterns(ui_state.exclude_patterns)
+  vim.ui.input({
+    prompt = "Exclude patterns (space-separated, e.g. /test/* *_spec.*): ",
+    default = current,
+  }, function(input)
+    if input then
+      ui_state.exclude_patterns = patterns.parse_patterns(input)
+      M.render_results(ui_state.results)
+      if ui_state.current_search ~= "" then
+        trigger_search()
+      end
+    end
+  end)
+end
+
+--- Show help
+function M.show_help()
+  local help_text = {
+    "Enhanced Grep Keybindings:",
+    "",
+    "Navigation:",
+    "  <CR>       - Jump to match under cursor",
+    "  <Tab>/za   - Toggle fold for file",
+    "  zR         - Expand all folds",
+    "  zM         - Collapse all folds",
+    "",
+    "Editing:",
+    "  i          - Edit search pattern",
+    "  <C-t>      - Toggle 'No Tests' filter",
+    "  <C-i>      - Edit include patterns",
+    "  <C-e>      - Edit exclude patterns",
+    "",
+    "Actions:",
+    "  <C-q>      - Send to quickfix list",
+    "  q/<Esc>    - Close picker",
+    "  ?          - Show this help",
+    "",
+    "Tips:",
+    "  - Type to search live (300ms delay)",
+    "  - Use wildcards in patterns (*.rb, /test/*, etc)",
+  }
+
+  vim.notify(table.concat(help_text, "\n"), vim.log.levels.INFO, {title = "Enhanced Grep Help"})
+end
+
 --- Trigger search from input
-local function trigger_search()
+trigger_search = function()
   if not ui_state.input_buf or not vim.api.nvim_buf_is_valid(ui_state.input_buf) then
     return
   end
 
-  local lines = vim.api.nvim_buf_get_lines(ui_state.input_buf, 0, -1, false)
-  local pattern = lines[1] or ""
+  local lines = vim.api.nvim_buf_get_lines(ui_state.input_buf, 0, 1, false)
+  local pattern = (lines[1] or ""):gsub("^%s+", ""):gsub("%s+$", "")  -- Trim whitespace
 
   if pattern == ui_state.current_search then
     return
@@ -340,16 +440,16 @@ function M.create_picker(opts)
   local row = math.floor((vim.o.lines - height) / 2)
   local col = math.floor((vim.o.columns - width) / 2)
 
-  -- Create input buffer
+  -- Create input buffer (regular buffer for text change events)
   ui_state.input_buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_option(ui_state.input_buf, "bufhidden", "wipe")
-  vim.api.nvim_buf_set_option(ui_state.input_buf, "buftype", "prompt")
+  vim.api.nvim_buf_set_option(ui_state.input_buf, "buftype", "")  -- Regular buffer, not prompt
+  vim.api.nvim_buf_set_option(ui_state.input_buf, "modifiable", true)
   vim.api.nvim_buf_set_lines(ui_state.input_buf, 0, -1, false, {opts.default_pattern or ""})
 
-  -- Set prompt
-  vim.fn.prompt_setprompt(ui_state.input_buf, "Search: ")
+  -- No prompt_setprompt for regular buffers
 
-  -- Create input window
+  -- Create input window with search label
   ui_state.input_win = vim.api.nvim_open_win(ui_state.input_buf, true, {
     relative = "editor",
     width = width,
@@ -358,8 +458,8 @@ function M.create_picker(opts)
     col = col,
     style = "minimal",
     border = {"╭", "─", "╮", "│", "┤", "─", "├", "│"},
-    title = " Enhanced Grep ",
-    title_pos = "center",
+    title = " Enhanced Grep - Search: ",
+    title_pos = "left",
   })
 
   -- Create main buffer for results
@@ -389,6 +489,19 @@ function M.create_picker(opts)
       vim.cmd("stopinsert")
       vim.api.nvim_set_current_win(ui_state.main_win)
     end, {desc = "Search"}},
+    {"i", "<C-t>", function()
+      vim.cmd("stopinsert")
+      M.toggle_no_tests()
+      vim.cmd("startinsert!")
+    end, {desc = "Toggle no tests filter"}},
+    {"i", "<C-i>", function()
+      vim.cmd("stopinsert")
+      M.edit_include_patterns()
+    end, {desc = "Edit include patterns"}},
+    {"i", "<C-e>", function()
+      vim.cmd("stopinsert")
+      M.edit_exclude_patterns()
+    end, {desc = "Edit exclude patterns"}},
     {"i", "<Esc>", function()
       M.close()
     end, {desc = "Close"}},
@@ -401,6 +514,7 @@ function M.create_picker(opts)
     {"n", "q", function()
       M.close()
     end, {desc = "Close"}},
+    {"n", "?", M.show_help, {desc = "Show help"}},
   }
 
   for _, keymap in ipairs(input_keymaps) do
@@ -419,6 +533,10 @@ function M.create_picker(opts)
       vim.api.nvim_set_current_win(ui_state.input_win)
       vim.cmd("startinsert!")
     end, {desc = "Edit search"}},
+    {"n", "<C-t>", M.toggle_no_tests, {desc = "Toggle no tests filter"}},
+    {"n", "<C-i>", M.edit_include_patterns, {desc = "Edit include patterns"}},
+    {"n", "<C-e>", M.edit_exclude_patterns, {desc = "Edit exclude patterns"}},
+    {"n", "?", M.show_help, {desc = "Show help"}},
     {"n", "q", M.close, {desc = "Close"}},
     {"n", "<Esc>", M.close, {desc = "Close"}},
     {"n", "<C-q>", M.to_quickfix, {desc = "Send to quickfix"}},
