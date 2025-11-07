@@ -3,6 +3,10 @@ return {
   dir = "/Users/ashwin/Code/egrep.nvim",
   name = "egrep.nvim",
   lazy = false,
+  dependencies = {
+    "MunifTanjim/nui.nvim",
+    "nvim-tree/nvim-web-devicons", -- optional, for file icons
+  },
 
   config = function()
     require("egrep").setup({
