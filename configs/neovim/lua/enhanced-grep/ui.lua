@@ -6,6 +6,9 @@ local M = {}
 
 -- UI state with additional windows for new layout
 local ui_state = {
+  -- Container window for unified border
+  container_buf = nil,
+  container_win = nil,
   -- Main results window
   main_buf = nil,
   main_win = nil,
@@ -21,6 +24,11 @@ local ui_state = {
   options_win = nil,
   preview_buf = nil,
   preview_win = nil,
+  -- Separator buffers for visual dividers
+  sep1_buf = nil,
+  sep1_win = nil,
+  sep2_buf = nil,
+  sep2_win = nil,
   -- State tracking
   results = {},
   file_map = {},
@@ -33,6 +41,7 @@ local ui_state = {
   exclude_patterns = {},
   on_search_callback = nil,
   current_preview_file = nil,
+  current_focused_input = nil,
   -- Options state
   ruby_only = false,
 }
@@ -56,6 +65,9 @@ local function setup_highlights()
   vim.api.nvim_set_hl(0, "EnhancedGrepPrompt", {link = "Title", default = true})
   vim.api.nvim_set_hl(0, "EnhancedGrepBorder", {link = "FloatBorder", default = true})
   vim.api.nvim_set_hl(0, "EnhancedGrepPreviewHighlight", {link = "CursorLine", default = true})
+  vim.api.nvim_set_hl(0, "EnhancedGrepActiveInput", {link = "CursorLine", default = true})
+  vim.api.nvim_set_hl(0, "EnhancedGrepInactiveInput", {link = "Normal", default = true})
+  vim.api.nvim_set_hl(0, "EnhancedGrepSeparator", {link = "Comment", default = true})
 end
 
 -- Forward declarations
@@ -69,11 +81,17 @@ function M.close()
     ui_state.search_timer = nil
   end
 
+  -- Clean up autocmd group
+  pcall(vim.api.nvim_del_augroup_by_name, "EnhancedGrepFocus")
+
   -- Close all windows
   local windows = {
+    ui_state.container_win,
     ui_state.input_win,
     ui_state.include_win,
     ui_state.exclude_win,
+    ui_state.sep1_win,
+    ui_state.sep2_win,
     ui_state.options_win,
     ui_state.main_win,
     ui_state.preview_win,
@@ -87,6 +105,8 @@ function M.close()
 
   -- Reset state
   ui_state = {
+    container_buf = nil,
+    container_win = nil,
     main_buf = nil,
     main_win = nil,
     input_buf = nil,
@@ -99,6 +119,10 @@ function M.close()
     options_win = nil,
     preview_buf = nil,
     preview_win = nil,
+    sep1_buf = nil,
+    sep1_win = nil,
+    sep2_buf = nil,
+    sep2_win = nil,
     results = {},
     file_map = {},
     match_map = {},
@@ -110,6 +134,7 @@ function M.close()
     exclude_patterns = {},
     on_search_callback = nil,
     current_preview_file = nil,
+    current_focused_input = nil,
     ruby_only = false,
   }
 end
@@ -224,9 +249,9 @@ function M.render_results(results)
       local matches = file_data.matches
       local file_line = #lines + 1
 
-      -- Default to expanded (true) if no saved state exists
+      -- Default to collapsed (false) if no saved state exists
       local saved_fold_state = state.get_fold_state(file)
-      local is_expanded = saved_fold_state ~= false  -- Default true if nil
+      local is_expanded = saved_fold_state == true  -- Default false if nil
 
       -- File header line
       local fold_icon = is_expanded and icons.expanded or icons.collapsed
@@ -386,6 +411,27 @@ function M.to_quickfix()
   vim.notify(string.format("Exported %d matches to quickfix", #qf_list), vim.log.levels.INFO)
 end
 
+--- Update input field highlights based on focus
+local function update_input_highlights()
+  local current_win = vim.api.nvim_get_current_win()
+
+  -- Update window highlights based on focus
+  if ui_state.input_win and vim.api.nvim_win_is_valid(ui_state.input_win) then
+    local hl = current_win == ui_state.input_win and "EnhancedGrepActiveInput" or "EnhancedGrepInactiveInput"
+    vim.api.nvim_win_set_option(ui_state.input_win, "winhl", "Normal:" .. hl)
+  end
+
+  if ui_state.include_win and vim.api.nvim_win_is_valid(ui_state.include_win) then
+    local hl = current_win == ui_state.include_win and "EnhancedGrepActiveInput" or "EnhancedGrepInactiveInput"
+    vim.api.nvim_win_set_option(ui_state.include_win, "winhl", "Normal:" .. hl)
+  end
+
+  if ui_state.exclude_win and vim.api.nvim_win_is_valid(ui_state.exclude_win) then
+    local hl = current_win == ui_state.exclude_win and "EnhancedGrepActiveInput" or "EnhancedGrepInactiveInput"
+    vim.api.nvim_win_set_option(ui_state.exclude_win, "winhl", "Normal:" .. hl)
+  end
+end
+
 --- Move to next input field
 function M.next_input()
   local current_win = vim.api.nvim_get_current_win()
@@ -402,6 +448,9 @@ function M.next_input()
     vim.api.nvim_set_current_win(ui_state.input_win)
     vim.cmd("startinsert!")
   end
+
+  update_input_highlights()
+  vim.schedule(function() vim.cmd("redraw") end)
 end
 
 --- Move to previous input field
@@ -421,6 +470,9 @@ function M.prev_input()
     vim.api.nvim_set_current_win(ui_state.input_win)
     vim.cmd("startinsert!")
   end
+
+  update_input_highlights()
+  vim.schedule(function() vim.cmd("redraw") end)
 end
 
 --- Toggle "No Tests" filter
@@ -553,7 +605,7 @@ function M.show_help()
     "  - All inputs support live search (300ms delay)",
     "  - Use wildcards: *.rb, /test/*, **/*.lua",
     "  - Preview updates as you navigate results",
-    "  - Files are expanded by default",
+    "  - Files are collapsed by default (press Tab to expand)",
   }
 
   vim.notify(table.concat(help_text, "\n"), vim.log.levels.INFO, {title = "Enhanced Grep Help"})
@@ -628,6 +680,8 @@ local function setup_input_keymaps(buf)
       trigger_search()
       vim.cmd("stopinsert")
       vim.api.nvim_set_current_win(ui_state.main_win)
+      update_input_highlights()
+      vim.schedule(function() vim.cmd("redraw") end)
     end, {desc = "Search and focus results"}},
     {"i", "<Esc>", function()
       M.close()
@@ -670,9 +724,9 @@ function M.create_picker(opts)
   local col = math.floor((vim.o.columns - total_width) / 2)
 
   -- Layout calculations
-  local input_height = 3  -- 3 input fields
-  local options_height = 2  -- Options line + separator
-  local results_height = total_height - input_height - options_height
+  -- Container has: 1 label + 3 inputs + 2 separators + 1 options = 7 lines
+  local container_internal_height = 7
+  local results_height = total_height - container_internal_height - 2  -- -2 for container borders
   local results_width = math.floor(total_width * 0.5)
   local preview_width = total_width - results_width - 1  -- -1 for border
 
@@ -713,60 +767,131 @@ function M.create_picker(opts)
   vim.api.nvim_buf_set_option(ui_state.preview_buf, "bufhidden", "wipe")
   vim.api.nvim_buf_set_option(ui_state.preview_buf, "modifiable", false)
 
-  -- Create input windows
-  ui_state.input_win = vim.api.nvim_open_win(ui_state.input_buf, true, {
+  -- Create container buffer for the main UI
+  ui_state.container_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_option(ui_state.container_buf, "bufhidden", "wipe")
+  vim.api.nvim_buf_set_option(ui_state.container_buf, "modifiable", true)
+  -- Add search pattern label at the top of container
+  vim.api.nvim_buf_set_lines(ui_state.container_buf, 0, -1, false, {" Search Pattern:"})
+  vim.api.nvim_buf_set_option(ui_state.container_buf, "modifiable", false)
+
+  -- Create container window with clean outer border
+  ui_state.container_win = vim.api.nvim_open_win(ui_state.container_buf, false, {
     relative = "editor",
     width = total_width,
-    height = 1,
+    height = container_internal_height,
     row = row,
     col = col,
     style = "minimal",
-    border = {"╭", "─", "╮", "│", "│", "─", "│", "│"},
-    title = " Search Pattern ",
-    title_pos = "left",
+    border = {"╭", "─", "╮", "│", "┤", "─", "├", "│"},
+    title = " Enhanced Grep ",
+    title_pos = "center",
   })
 
+  -- Helper function to create labeled separator
+  local function create_labeled_separator(label)
+    local sep_width = total_width - 2
+    local label_with_spaces = " " .. label .. " "
+    local label_len = #label_with_spaces
+    local before_len = 2
+    local after_len = sep_width - before_len - label_len
+
+    if after_len < 0 then after_len = 0 end
+
+    return string.rep("─", before_len) .. label_with_spaces .. string.rep("─", after_len)
+  end
+
+  -- Create separator buffers with labels
+  ui_state.sep1_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_option(ui_state.sep1_buf, "bufhidden", "wipe")
+  vim.api.nvim_buf_set_option(ui_state.sep1_buf, "modifiable", true)
+  vim.api.nvim_buf_set_lines(ui_state.sep1_buf, 0, -1, false, {create_labeled_separator("Include Patterns")})
+  vim.api.nvim_buf_set_option(ui_state.sep1_buf, "modifiable", false)
+
+  ui_state.sep2_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_option(ui_state.sep2_buf, "bufhidden", "wipe")
+  vim.api.nvim_buf_set_option(ui_state.sep2_buf, "modifiable", true)
+  vim.api.nvim_buf_set_lines(ui_state.sep2_buf, 0, -1, false, {create_labeled_separator("Exclude Patterns")})
+  vim.api.nvim_buf_set_option(ui_state.sep2_buf, "modifiable", false)
+
+  -- Create borderless input windows inside the container
+  -- Search Pattern window
+  ui_state.input_win = vim.api.nvim_open_win(ui_state.input_buf, true, {
+    relative = "editor",
+    width = total_width - 2,  -- -2 for container borders
+    height = 1,
+    row = row + 1,  -- +1 for container top border
+    col = col + 1,  -- +1 for container left border
+    style = "minimal",
+    border = "none",
+  })
+  vim.api.nvim_win_set_option(ui_state.input_win, "winhl", "Normal:EnhancedGrepActiveInput")
+
+  -- First separator
+  ui_state.sep1_win = vim.api.nvim_open_win(ui_state.sep1_buf, false, {
+    relative = "editor",
+    width = total_width - 2,
+    height = 1,
+    row = row + 2,  -- after search input
+    col = col + 1,
+    style = "minimal",
+    border = "none",
+  })
+  vim.api.nvim_win_set_option(ui_state.sep1_win, "winhl", "Normal:EnhancedGrepSeparator")
+
+  -- Include pattern window
   ui_state.include_win = vim.api.nvim_open_win(ui_state.include_buf, false, {
     relative = "editor",
-    width = total_width,
+    width = total_width - 2,
     height = 1,
-    row = row + 1,
-    col = col,
+    row = row + 3,  -- after first separator
+    col = col + 1,
     style = "minimal",
-    border = {"│", " ", "│", "│", "│", " ", "│", "│"},
-    title = " Include ",
-    title_pos = "left",
+    border = "none",
   })
+  vim.api.nvim_win_set_option(ui_state.include_win, "winhl", "Normal:EnhancedGrepInactiveInput")
 
+  -- Second separator
+  ui_state.sep2_win = vim.api.nvim_open_win(ui_state.sep2_buf, false, {
+    relative = "editor",
+    width = total_width - 2,
+    height = 1,
+    row = row + 4,  -- after include input
+    col = col + 1,
+    style = "minimal",
+    border = "none",
+  })
+  vim.api.nvim_win_set_option(ui_state.sep2_win, "winhl", "Normal:EnhancedGrepSeparator")
+
+  -- Exclude pattern window
   ui_state.exclude_win = vim.api.nvim_open_win(ui_state.exclude_buf, false, {
     relative = "editor",
-    width = total_width,
+    width = total_width - 2,
     height = 1,
-    row = row + 2,
-    col = col,
+    row = row + 5,  -- after second separator
+    col = col + 1,
     style = "minimal",
-    border = {"│", " ", "│", "│", "├", "─", "┤", "│"},
-    title = " Exclude ",
-    title_pos = "left",
+    border = "none",
   })
+  vim.api.nvim_win_set_option(ui_state.exclude_win, "winhl", "Normal:EnhancedGrepInactiveInput")
 
-  -- Create options window
+  -- Options window (inside container at bottom)
   ui_state.options_win = vim.api.nvim_open_win(ui_state.options_buf, false, {
     relative = "editor",
-    width = total_width,
+    width = total_width - 2,
     height = 1,
-    row = row + input_height,
-    col = col,
+    row = row + 6,  -- after exclude input
+    col = col + 1,
     style = "minimal",
-    border = {"├", "─", "┤", "│", "├", "─", "┴", "│"},
+    border = "none",
   })
 
-  -- Create results window (left side)
+  -- Create results window (left side, below container)
   ui_state.main_win = vim.api.nvim_open_win(ui_state.main_buf, false, {
     relative = "editor",
     width = results_width,
     height = results_height,
-    row = row + input_height + options_height,
+    row = row + container_internal_height + 2,  -- +2 for container borders
     col = col,
     style = "minimal",
     border = {"├", "─", "┬", "│", "╰", "─", "┴", "│"},
@@ -774,12 +899,12 @@ function M.create_picker(opts)
     title_pos = "center",
   })
 
-  -- Create preview window (right side)
+  -- Create preview window (right side, below container)
   ui_state.preview_win = vim.api.nvim_open_win(ui_state.preview_buf, false, {
     relative = "editor",
     width = preview_width,
     height = results_height,
-    row = row + input_height + options_height,
+    row = row + container_internal_height + 2,  -- +2 for container borders
     col = col + results_width + 1,
     style = "minimal",
     border = {"┬", "─", "┤", "│", "┴", "─", "╯", "│"},
@@ -808,6 +933,8 @@ function M.create_picker(opts)
     {"n", "i", function()
       vim.api.nvim_set_current_win(ui_state.input_win)
       vim.cmd("startinsert!")
+      update_input_highlights()
+      vim.schedule(function() vim.cmd("redraw") end)
     end, {desc = "Edit search"}},
     {"n", "1", M.toggle_no_tests, {desc = "Toggle no tests filter"}},
     {"n", "2", M.toggle_ruby_only, {desc = "Toggle Ruby only"}},
@@ -847,10 +974,22 @@ function M.create_picker(opts)
     end,
   })
 
+  -- Set up autocmd for focus changes to update highlights
+  local focus_group = vim.api.nvim_create_augroup("EnhancedGrepFocus", { clear = true })
+  vim.api.nvim_create_autocmd({"WinEnter", "BufEnter"}, {
+    group = focus_group,
+    callback = function()
+      if ui_state.input_win then
+        update_input_highlights()
+      end
+    end,
+  })
+
   -- Render initial state
   render_options()
   M.render_results({})
   update_preview(nil, nil)
+  update_input_highlights()
 
   -- Start in insert mode
   vim.cmd("startinsert!")
