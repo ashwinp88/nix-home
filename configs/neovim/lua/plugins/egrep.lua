@@ -27,7 +27,7 @@ return {
 
   keys = {
     {
-      "<leader>sE",
+      "<leader>/",
       function()
         require("egrep").grep()
       end,
