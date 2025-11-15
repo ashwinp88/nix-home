@@ -169,7 +169,14 @@ fi
 
 # Append subdirectory if specified
 if [[ -n "$FLAKE_SUBDIR" ]]; then
-  FLAKE_BASE="${FLAKE_BASE}/${FLAKE_SUBDIR}"
+  # Check if FLAKE_BASE is a GitHub reference
+  if [[ "$FLAKE_BASE" =~ ^github: ]]; then
+    # For GitHub flakes, use ?dir= syntax for subdirectories
+    FLAKE_BASE="${FLAKE_BASE}?dir=${FLAKE_SUBDIR}"
+  else
+    # For local paths, just append the subdirectory
+    FLAKE_BASE="${FLAKE_BASE}/${FLAKE_SUBDIR}"
+  fi
 fi
 
 FLAKE_ATTR="$(attr_for_system "$TARGET_SYSTEM" "$BASE_ONLY" "$TARGET_ARCH")"
