@@ -39,5 +39,14 @@
     VISUAL = "nvim";
     PAGER = "less";
     LESS = "-R";
+
+    # Configure npm to use writable directory instead of read-only Nix store
+    # This allows `npm install -g` to work with Nix-managed Node.js
+    NPM_CONFIG_PREFIX = "$HOME/.npm-global";
   };
+
+  # Add npm global packages to PATH
+  home.sessionPath = [
+    "$HOME/.npm-global/bin"
+  ];
 }
