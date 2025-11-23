@@ -110,15 +110,6 @@
       nrb = "home-manager build";
     };
   };
-
-
-  # Enable direnv for automatic environment switching
-  programs.direnv = {
-    enable = true;
-    enableZshIntegration = true;
-    nix-direnv.enable = true;
-  };
-
   # FZF configuration
   programs.fzf = {
     enable = true;

@@ -21,7 +21,6 @@
     # Nix tools
     nil             # Nix LSP
     nixfmt-rfc-style # Nix formatter
-    nix-direnv      # Direnv with Nix support
 
     # Language runtimes (always available)
     nodejs_20       # Node.js for development
@@ -29,7 +28,6 @@
 
     # Additional tools
     tmux            # Terminal multiplexer
-    direnv          # Environment management
     sqlite          # For yanky.nvim database
   ];
 
