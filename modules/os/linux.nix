@@ -5,7 +5,7 @@ let
     #!/usr/bin/env bash
     set -euo pipefail
 
-    tty_target=${1:-}
+    tty_target='''${1:-}
     if [[ -z "$tty_target" ]]; then
       echo "osc52-copy: missing tty" >&2
       exit 1
