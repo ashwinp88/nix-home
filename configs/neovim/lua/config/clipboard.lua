@@ -1,5 +1,10 @@
 -- Use OSC52 clipboard integration when running inside remote shells/tmux.
 local function need_osc52()
+  -- macOS has native clipboard support (pbcopy/pbpaste) that works in tmux
+  if jit.os == "OSX" then
+    return false
+  end
+
   if os.getenv("SSH_TTY") or os.getenv("SSH_CONNECTION") then
     return true
   end
