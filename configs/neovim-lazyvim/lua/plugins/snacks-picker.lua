@@ -201,12 +201,6 @@ return {
 			nowait = true,
 		},
 		{
-			"<leader>sg",
-			function() Snacks.picker.grep() end,
-			desc = "Grep",
-			nowait = true,
-		},
-		{
 			"<leader>sw",
 			function() Snacks.picker.grep_word() end,
 			desc = "Visual selection or word",

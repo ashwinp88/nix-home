@@ -3,7 +3,6 @@
 {
   programs.tmux = {
     enable = true;
-    prefix = "C-s";
     mouse = true;
     terminal = "screen-256color";
     historyLimit = 10000;
