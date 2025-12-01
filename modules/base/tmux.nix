@@ -7,13 +7,21 @@
     terminal = "screen-256color";
     historyLimit = 10000;
     keyMode = "vi";
+    prefix = "C-s";
 
     # Use TPM for all plugins - no Nix plugins
     plugins = [];
 
     extraConfig = ''
+      # Unbind default prefix
+      unbind C-b
+
       unbind r
       bind r source-file ~/.config/tmux/tmux.conf
+
+      # Disable "/" in copy-mode, only allow search via prefix + /
+      unbind -T copy-mode-vi /
+      bind / copy-mode \; command-prompt -p "search down:" "send-keys -X search-forward '%%'"
 
       # Disable automatic clipboard access (we'll use explicit copy with 'y')
       set -s set-clipboard off
