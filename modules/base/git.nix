@@ -2,7 +2,7 @@
 
 {
   programs.git = {
-    enable = true;
+    enable = false;
 
     # Use new settings format
     settings = {

@@ -15,7 +15,6 @@
     btop            # Better process viewer (replaced htop)
 
     # Version control
-    git
     gh              # GitHub CLI
 
     # Nix tools
