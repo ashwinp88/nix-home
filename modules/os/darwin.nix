@@ -1,5 +1,18 @@
 { config, pkgs, lib, ... }:
 
+let
+  # Homebrew-managed software so macOS-specific bits stay declarative
+  brewFormulas = [
+    "ruby"
+  ];
+
+  brewCasks = [
+    "ghostty"
+  ];
+
+  shellArray = items:
+    if items == [] then "" else lib.escapeShellArgs items;
+in
 {
   # macOS-specific packages
   home.packages = with pkgs; [
@@ -119,7 +132,19 @@
     fi
 
     if command -v brew &> /dev/null; then
-      brew list --cask ghostty &>/dev/null || brew install --cask ghostty || true
+      brew_formulas=(
+        ${shellArray brewFormulas}
+      )
+      for pkg in "${brew_formulas[@]}"; do
+        brew list --formula "$pkg" &>/dev/null || brew install "$pkg" || true
+      done
+
+      brew_casks=(
+        ${shellArray brewCasks}
+      )
+      for cask in "${brew_casks[@]}"; do
+        brew list --cask "$cask" &>/dev/null || brew install --cask "$cask" || true
+      done
     fi
   '';
 }
