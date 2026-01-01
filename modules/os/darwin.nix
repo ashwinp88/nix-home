@@ -9,9 +9,6 @@ let
   brewCasks = [
     "ghostty"
   ];
-
-  shellArray = items:
-    if items == [] then "" else lib.escapeShellArgs items;
 in
 {
   # macOS-specific packages
@@ -37,6 +34,7 @@ in
   };
 
   home.sessionPath = [
+    "/opt/homebrew/opt/ruby/bin"  # Ruby is keg-only so binaries live under opt/
     "/opt/homebrew/bin"
     "/opt/homebrew/sbin"
   ];
@@ -132,19 +130,17 @@ in
     fi
 
     if command -v brew &> /dev/null; then
-      brew_formulas=(
-        ${shellArray brewFormulas}
-      )
-      for pkg in "${brew_formulas[@]}"; do
-        brew list --formula "$pkg" &>/dev/null || brew install "$pkg" || true
-      done
+      ${lib.optionalString (brewFormulas != []) ''
+        for pkg in ${lib.escapeShellArgs brewFormulas}; do
+          brew list --formula "$pkg" &>/dev/null || brew install "$pkg" || true
+        done
+      ''}
 
-      brew_casks=(
-        ${shellArray brewCasks}
-      )
-      for cask in "${brew_casks[@]}"; do
-        brew list --cask "$cask" &>/dev/null || brew install --cask "$cask" || true
-      done
+      ${lib.optionalString (brewCasks != []) ''
+        for cask in ${lib.escapeShellArgs brewCasks}; do
+          brew list --cask "$cask" &>/dev/null || brew install --cask "$cask" || true
+        done
+      ''}
     fi
   '';
 }
