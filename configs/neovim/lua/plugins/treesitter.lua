@@ -16,15 +16,12 @@ return {
       "markdown_inline",
     }
 
-    -- Install parsers using new API
-    require("nvim-treesitter").install(parsers)
-
-    -- Enable treesitter highlighting for these filetypes
-    vim.api.nvim_create_autocmd("FileType", {
-      pattern = parsers,
-      callback = function()
-        pcall(vim.treesitter.start)
-      end,
-    })
+    -- Configure the official Treesitter modules instead of calling a non-existent API
+    require("nvim-treesitter.configs").setup {
+      ensure_installed = parsers,
+      auto_install = false,
+      highlight = { enable = true },
+      indent = { enable = true },
+    }
   end,
 }

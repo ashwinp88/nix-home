@@ -1,16 +1,11 @@
 { config, pkgs, lib, ... }:
 
 let
-  # Homebrew-managed software so macOS-specific bits stay declarative
-  brewFormulas = [
-    "ruby"
-  ];
-
-  brewCasks = [
-    "ghostty"
-  ];
+  cfg = config.homebrew;
 in
 {
+  homebrew.casks = [ "ghostty" ];
+
   # macOS-specific packages
   home.packages = with pkgs; [
     reattach-to-user-namespace  # For macOS clipboard support in tmux
@@ -34,7 +29,6 @@ in
   };
 
   home.sessionPath = [
-    "/opt/homebrew/opt/ruby/bin"  # Ruby is keg-only so binaries live under opt/
     "/opt/homebrew/bin"
     "/opt/homebrew/sbin"
   ];
@@ -130,14 +124,14 @@ in
     fi
 
     if command -v brew &> /dev/null; then
-      ${lib.optionalString (brewFormulas != []) ''
-        for pkg in ${lib.escapeShellArgs brewFormulas}; do
+      ${lib.optionalString (cfg.formulas != []) ''
+        for pkg in ${lib.escapeShellArgs cfg.formulas}; do
           brew list --formula "$pkg" &>/dev/null || brew install "$pkg" || true
         done
       ''}
 
-      ${lib.optionalString (brewCasks != []) ''
-        for cask in ${lib.escapeShellArgs brewCasks}; do
+      ${lib.optionalString (cfg.casks != []) ''
+        for cask in ${lib.escapeShellArgs cfg.casks}; do
           brew list --cask "$cask" &>/dev/null || brew install --cask "$cask" || true
         done
       ''}

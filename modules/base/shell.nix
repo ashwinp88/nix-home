@@ -140,4 +140,9 @@
       style = "numbers,changes,header";
     };
   };
+
+  # Skip bat cache rebuild to avoid noisy warnings from upstream syntax bundles
+  home.activation.batCache = lib.mkForce (lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    verboseEcho "Skipping bat cache rebuild (bat will update on demand)"
+  '');
 }
