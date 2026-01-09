@@ -1,27 +1,36 @@
 return {
   "nvim-treesitter/nvim-treesitter",
-  branch = "main", -- Use the new rewrite (requires Neovim 0.11+)
+  branch = "master",
   build = ":TSUpdate",
-  lazy = false, -- Treesitter should not be lazy-loaded
   config = function()
-    local parsers = {
-      "lua",
-      "vim",
-      "vimdoc",
-      "javascript",
-      "typescript",
-      "yaml",
-      "python",
-      "markdown",
-      "markdown_inline",
-    }
+    local ok, config = pcall(require, "nvim-treesitter.config")
+    if not ok then
+      ok, config = pcall(require, "nvim-treesitter.configs")
+      if not ok then
+        vim.notify("nvim-treesitter not available", vim.log.levels.WARN)
+        return
+      end
+    end
 
-    -- Configure the official Treesitter modules instead of calling a non-existent API
-    require("nvim-treesitter.configs").setup {
-      ensure_installed = parsers,
-      auto_install = false,
-      highlight = { enable = true },
+    config.setup({
+      ensure_installed = {
+        "lua",
+        "vim",
+        "vimdoc",
+        "javascript",
+        "typescript",
+        "yaml",
+        "python",
+        "markdown",
+        "markdown_inline",
+      },
+      auto_install = true,
+      highlight = {
+        enable = true,
+        additional_vim_regex_highlighting = false,
+      },
       indent = { enable = true },
-    }
+      modules = {},
+    })
   end,
 }

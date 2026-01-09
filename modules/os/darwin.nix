@@ -1,10 +1,25 @@
 { config, pkgs, lib, ... }:
 
 let
+  inherit (lib) mkOption types;
   cfg = config.homebrew;
 in
 {
-  homebrew.casks = [ "ghostty" ];
+  options.homebrew = {
+    formulas = mkOption {
+      type = types.listOf types.str;
+      default = [];
+      description = "Homebrew formula packages to install.";
+    };
+    casks = mkOption {
+      type = types.listOf types.str;
+      default = [];
+      description = "Homebrew cask packages to install.";
+    };
+  };
+
+  config = {
+    homebrew.casks = [ "ghostty" ];
 
   # macOS-specific packages
   home.packages = with pkgs; [
@@ -137,4 +152,5 @@ in
       ''}
     fi
   '';
+  };
 }

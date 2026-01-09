@@ -30,8 +30,23 @@ if vim.fn.isdirectory(config_path) == 1 then
 	end
 end
 
--- Setup lazy.nvim - load all plugin files from lua/plugins/
-require("lazy").setup("plugins")
+-- Setup lazy.nvim with reproducible lockfile
+-- Nix provides a read-only reference lockfile, we copy it to a writable location
+local config_dir = vim.fn.stdpath("config")
+local data_dir = vim.fn.stdpath("data")
+local nix_lockfile = config_dir .. "/lazy-lock.nix.json"  -- Nix-managed reference
+local lockfile = data_dir .. "/lazy-lock.json"  -- Writable copy
+
+-- Copy nix lockfile to writable location if it exists and local one doesn't
+if vim.fn.filereadable(nix_lockfile) == 1 and vim.fn.filereadable(lockfile) == 0 then
+  vim.fn.system({ "cp", nix_lockfile, lockfile })
+  vim.fn.system({ "chmod", "644", lockfile })
+end
+
+require("lazy").setup("plugins", {
+  lockfile = lockfile,
+  install = { missing = true },
+})
 
 -- Clear old recent files on startup (optional)
 -- vim.cmd("silent! :oldfiles | only")
