@@ -24,6 +24,11 @@ let
   '';
 in
 {
+  imports = [
+      ../base/ruby.nix
+      ../base/ruby-personal.nix
+    ];
+
   # Linux-specific packages
   home.packages = lib.mkAfter (with pkgs; [
     docker          # Docker Engine
