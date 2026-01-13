@@ -1,14 +1,19 @@
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 
+let
+  rubyBuildVersion = "v20260110";
+  # Pin ruby-build so rbenv can compile Rubies even when nixpkgs does not ship it.
+  rubyBuildSrc = pkgs.fetchFromGitHub {
+    owner = "rbenv";
+    repo = "ruby-build";
+    rev = rubyBuildVersion;
+    sha256 = "0r291nbval2i06svzrl7p7hs5aj5yqq4q7id8a4953s8wwi3r4jw";
+  };
+in
 {
-  programs.rbenv = {
+  config.languages.ruby = {
     enable = true;
-    enableZshIntegration = true;
-    plugins = [
-      {
-        name = "ruby-build";
-        src = pkgs.ruby-build.src;
-      }
-    ];
+    provider = "rbenv";
+    rubyBuildPackage = rubyBuildSrc;
   };
 }
