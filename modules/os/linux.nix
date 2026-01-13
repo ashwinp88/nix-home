@@ -33,6 +33,8 @@ in
   home.packages = lib.mkAfter (with pkgs; [
     docker          # Docker Engine
     gh              # GitHub CLI (ensure present on Linux too)
+    libyaml         # Headers needed for psych when compiling Ruby
+    libffi          # Headers needed for fiddle when compiling Ruby
   ]);
 
   # Script used to relay tmux selections via OSC52 (host clipboard over SSH)
