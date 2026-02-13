@@ -19,6 +19,9 @@ in
   };
 
   config = {
+    # Use ~/.config/ instead of ~/Library/Application Support/ for XDG-aware programs (e.g. lazygit)
+    xdg.enable = true;
+
     homebrew.casks = [ "ghostty" ];
 
   # macOS-specific packages
