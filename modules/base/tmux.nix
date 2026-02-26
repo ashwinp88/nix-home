@@ -4,7 +4,7 @@
   programs.tmux = {
     enable = true;
     mouse = true;
-    terminal = "screen-256color";
+    terminal = "tmux-256color";
     historyLimit = 10000;
     keyMode = "vi";
     prefix = "C-s";
@@ -22,9 +22,6 @@
       # Disable "/" in copy-mode, only allow search via prefix + /
       unbind -T copy-mode-vi /
       bind / copy-mode \; command-prompt -p "search down:" "send-keys -X search-forward '%%'"
-
-      # Disable automatic clipboard access (we'll use explicit copy with 'y')
-      set -s set-clipboard off
 
       # Terminal overrides for proper cursor support (use vertical bar cursor)
       set -ga terminal-overrides ',*:Ss=\E[%p1%d q:Se=\E[6 q'
