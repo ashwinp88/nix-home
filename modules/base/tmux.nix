@@ -50,12 +50,28 @@
       # tmux-yank settings - disable mouse copy
       set -g @yank_with_mouse off
 
+      # Enable OSC 52 clipboard (works over SSH without pbcopy/xclip)
+      set -g set-clipboard on
+      set -ag terminal-features ',*:clipboard'
+
       # List of plugins
       set -g @plugin 'tmux-plugins/tpm'
       set -g @plugin 'catppuccin/tmux'
       set -g @plugin 'tmux-plugins/tmux-cpu'
       set -g @plugin 'tmux-plugins/tmux-yank'
       set -g @plugin 'pcasaretto/tmux-git-worktree'
+      set -g @plugin 'tmux-plugins/tmux-resurrect'
+      set -g @plugin 'tmux-plugins/tmux-continuum'
+
+      # tmux-resurrect settings
+      set -g @resurrect-capture-pane-contents 'on'
+      set -g @resurrect-strategy-nvim 'session'
+      set -g @resurrect-save 'S'
+      set -g @resurrect-restore 'R'
+
+      # tmux-continuum settings
+      set -g @continuum-restore 'on'
+      set -g @continuum-save-interval '15'
 
       # Copy mode configuration
       set-window-option -g mode-keys vi
