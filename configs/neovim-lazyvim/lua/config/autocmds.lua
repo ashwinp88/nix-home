@@ -12,7 +12,18 @@ vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHo
 
 -- Notify when file changes on disk
 vim.api.nvim_create_autocmd("FileChangedShellPost", {
-  callback = function()
+  callback = function(args)
+    local filepath = vim.api.nvim_buf_get_name(args.buf)
+    if filepath == "" then
+      return
+    end
+    -- File was deleted (e.g. branch switch) — notify once and stop re-checking this buffer
+    if vim.fn.filereadable(filepath) == 0 then
+      vim.bo[args.buf].autoread = false
+      local short = vim.fn.fnamemodify(filepath, ":~:.")
+      vim.notify("File deleted from disk: " .. short, vim.log.levels.WARN)
+      return
+    end
     vim.notify("File changed on disk. Buffer reloaded.", vim.log.levels.INFO)
   end,
 })
