@@ -23,12 +23,12 @@
       unbind -T copy-mode-vi /
       bind / copy-mode \; command-prompt -p "search down:" "send-keys -X search-forward '%%'"
 
-      # Extended keys (CSI u encoding) for proper key sequences in apps like LNAV
-      set -g extended-keys on
+      # Extended keys: keep on, but prefer xterm format for app compatibility.
+      set -s extended-keys on
+      set -s extended-keys-format xterm
 
-      # Allow OSC passthrough so apps can query/receive terminal color info
-      # (fixes garbled RGB escape sequences in LNAV command pane)
-      set -g allow-passthrough on
+      # Disable passthrough to avoid raw OSC/control sequence leakage in TUIs.
+      set-window-option -g allow-passthrough off
 
       # Terminal overrides for proper cursor support (use vertical bar cursor)
       set -ga terminal-overrides ',*:Ss=\E[%p1%d q:Se=\E[6 q'
