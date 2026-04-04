@@ -113,7 +113,8 @@
       set -ga status-left "#[bg=#{@thm_bg},fg=#{@thm_blue}] 󰉋 #{=/-32/...:#{s|$USER|~|:#{b:pane_current_path}}} "
       set -ga status-left "#[bg=#{@thm_bg},fg=#{@thm_overlay_0},none]#{?window_zoomed_flag,│,}"
       set -ga status-left "#[bg=#{@thm_bg},fg=#{@thm_yellow}]#{?window_zoomed_flag,  zoom ,}"
-      set -ga status-left "#{?#{!=:#{git_worktree},},#[bg=#{@thm_bg},fg=#{@thm_overlay_0}]│#[bg=#{@thm_bg},fg=#{@thm_flamingo}]  #{git_worktree} ,}"
+      set -ga status-left "#[bg=#{@thm_bg},fg=#{@thm_overlay_0},none]#{?#{!=:#{git_worktree},},│,}"
+      set -ga status-left "#[bg=#{@thm_bg},fg=#{@thm_flamingo}]#{?#{!=:#{git_worktree},},  #{git_worktree} ,}"
 
       # status right look and feel
       set -g status-right '#[bg=#{@thm_bg},fg=#{@thm_green}]   CPU #{cpu_percentage} '

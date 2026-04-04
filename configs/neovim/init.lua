@@ -37,10 +37,18 @@ local data_dir = vim.fn.stdpath("data")
 local nix_lockfile = config_dir .. "/lazy-lock.nix.json"  -- Nix-managed reference
 local lockfile = data_dir .. "/lazy-lock.json"  -- Writable copy
 
--- Copy nix lockfile to writable location if it exists and local one doesn't
-if vim.fn.filereadable(nix_lockfile) == 1 and vim.fn.filereadable(lockfile) == 0 then
-  vim.fn.system({ "cp", nix_lockfile, lockfile })
-  vim.fn.system({ "chmod", "644", lockfile })
+-- Keep the writable lockfile in sync with the Nix-managed reference so flake
+-- updates actually propagate plugin version changes.
+if vim.fn.filereadable(nix_lockfile) == 1 then
+  local nix_contents = table.concat(vim.fn.readfile(nix_lockfile), "\n")
+  local local_contents = vim.fn.filereadable(lockfile) == 1
+      and table.concat(vim.fn.readfile(lockfile), "\n")
+      or nil
+
+  if local_contents ~= nix_contents then
+    vim.fn.writefile(vim.fn.readfile(nix_lockfile), lockfile)
+    vim.fn.system({ "chmod", "644", lockfile })
+  end
 end
 
 require("lazy").setup("plugins", {
