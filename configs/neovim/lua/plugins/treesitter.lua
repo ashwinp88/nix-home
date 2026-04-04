@@ -42,8 +42,19 @@ return {
     treesitter.setup({})
 
     vim.schedule(function()
-      treesitter.install(parser_languages, { summary = true })
-    })
+      local installed = {} ---@type table<string, boolean>
+      for _, language in ipairs(treesitter.get_installed("parsers")) do
+        installed[language] = true
+      end
+
+      local missing = vim.tbl_filter(function(language)
+        return not installed[language]
+      end, parser_languages)
+
+      if #missing > 0 then
+        treesitter.install(missing, { summary = true })
+      end
+    end)
 
     local group = vim.api.nvim_create_augroup("NixHomeTreesitter", { clear = true })
 
