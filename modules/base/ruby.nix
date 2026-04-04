@@ -13,21 +13,9 @@ let
 in
 {
   options = {
-    homebrew.formulas = mkOption {
-      description = "Homebrew formula packages to ensure are installed.";
-      type = types.listOf types.str;
-      default = [];
-    };
-
-    homebrew.casks = mkOption {
-      description = "Homebrew cask packages to ensure are installed.";
-      type = types.listOf types.str;
-      default = [];
-    };
-
     languages.ruby = {
       enable = mkEnableOption "Ruby tooling managed outside the Nix store" // {
-        default = true;
+        default = false;
       };
 
       provider = mkOption {

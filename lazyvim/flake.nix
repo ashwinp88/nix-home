@@ -112,12 +112,30 @@
           ];
         };
 
+        "home-darwin" = mkHomeConfig {
+          system = darwinSystem;
+          modules = [
+            ../modules/base-lazyvim/default.nix
+            ../modules/os/darwin.nix
+            ../modules/personal/ruby.nix
+          ];
+        };
+
         # Linux configuration (headless)
         "base-linux" = mkHomeConfig {
           system = linuxSystemX86;
           modules = [
             ../modules/base-lazyvim/default.nix
             ../modules/os/linux.nix
+          ];
+        };
+
+        "home-linux" = mkHomeConfig {
+          system = linuxSystemX86;
+          modules = [
+            ../modules/base-lazyvim/default.nix
+            ../modules/os/linux.nix
+            ../modules/personal/ruby.nix
           ];
         };
 
@@ -129,11 +147,29 @@
           ];
         };
 
+        "home-linux-x86_64" = mkHomeConfig {
+          system = linuxSystemX86;
+          modules = [
+            ../modules/base-lazyvim/default.nix
+            ../modules/os/linux.nix
+            ../modules/personal/ruby.nix
+          ];
+        };
+
         "base-linux-aarch64" = mkHomeConfig {
           system = linuxSystemArm;
           modules = [
             ../modules/base-lazyvim/default.nix
             ../modules/os/linux.nix
+          ];
+        };
+
+        "home-linux-aarch64" = mkHomeConfig {
+          system = linuxSystemArm;
+          modules = [
+            ../modules/base-lazyvim/default.nix
+            ../modules/os/linux.nix
+            ../modules/personal/ruby.nix
           ];
         };
       };

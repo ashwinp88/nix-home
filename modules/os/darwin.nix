@@ -1,23 +1,9 @@
 { config, pkgs, lib, ... }:
 
 let
-  inherit (lib) mkOption types;
   cfg = config.homebrew;
 in
 {
-  options.homebrew = {
-    formulas = mkOption {
-      type = types.listOf types.str;
-      default = [];
-      description = "Homebrew formula packages to install.";
-    };
-    casks = mkOption {
-      type = types.listOf types.str;
-      default = [];
-      description = "Homebrew cask packages to install.";
-    };
-  };
-
   config = {
     # Use ~/.config/ instead of ~/Library/Application Support/ for XDG-aware programs (e.g. lazygit)
     xdg.enable = true;
@@ -26,18 +12,9 @@ in
 
   # macOS-specific packages
   home.packages = with pkgs; [
-    reattach-to-user-namespace  # For macOS clipboard support in tmux
     nerd-fonts.fira-code       # Primary font for Ghostty and terminal
     nerd-fonts.jetbrains-mono  # Alternative font option
   ];
-
-  # macOS-specific tmux configuration (ONLY clipboard)
-  programs.tmux.extraConfig = ''
-    set -g default-command "reattach-to-user-namespace -l ''${SHELL}"
-    bind-key -T copy-mode-vi y send-keys -X copy-pipe "reattach-to-user-namespace pbcopy"
-    bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "reattach-to-user-namespace pbcopy"
-    run-shell 'tmux bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-selection-no-clear'
-  '';
 
   # Homebrew environment variables
   home.sessionVariables = {

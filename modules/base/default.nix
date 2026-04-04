@@ -2,7 +2,9 @@
 
 {
   imports = [
+    ./homebrew-options.nix
     ./packages.nix
+    ./ruby.nix
     ./tmux.nix
     ./neovim.nix
     ./shell.nix

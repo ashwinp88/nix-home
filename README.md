@@ -40,7 +40,8 @@ LazyVim distribution with minimal overrides for best-practice defaults.
 - **Yank behavior**: Stays in copy mode (doesn't scroll down)
 - **Visual feedback**: Pane dimming for better focus
 - **Git integration**: Shows current worktree in status bar
-- **Plugins**: catppuccin, tmux-cpu, tmux-yank
+- **Clipboard**: Native tmux copy-mode with OSC52 forwarding
+- **Plugins**: catppuccin, tmux-cpu, tmux-git-worktree, tmux-resurrect, tmux-continuum
 
 ### Neovim Configuration
 - **Base plugins**: LSP, treesitter, completion, git integration, file navigation
@@ -53,12 +54,12 @@ LazyVim distribution with minimal overrides for best-practice defaults.
 #### macOS
 - **Fonts**: FiraCode Nerd Font, JetBrainsMono Nerd Font
 - **Terminal**: Ghostty with FiraCode and Catppuccin theme
-- **Clipboard**: tmux integration with pbcopy
+- **Clipboard**: Native tmux copy-mode with OSC52 forwarding
 - **Homebrew**: Environment setup and optional installation
 
 #### Linux (Headless)
 - **Docker**: Docker Engine included
-- **Clipboard**: tmux buffer-only (no GUI dependencies)
+- **Clipboard**: Native tmux copy-mode with OSC52 forwarding over SSH
 - **No fonts**: Optimized for headless servers
 
 ## Quick Start
@@ -121,11 +122,11 @@ home-manager switch --impure --flake ./lazyvim#base-darwin
 
 For tmux plugins to work:
 ```bash
-# Start tmux (it will auto-install TPM)
+# Start tmux (TPM bootstraps on first launch)
 tmux
 
-# Inside tmux, install plugins
-# Press: Ctrl+s then I (capital i)
+# If any plugin is still missing, install/update from inside tmux
+# Press: Ctrl+b then I (capital i)
 ```
 
 For Neovim plugins:
@@ -144,23 +145,29 @@ Complete development environment for macOS with GUI tools and fonts.
 
 **Includes:**
 - All core tools (JDK, Node.js, development CLI tools)
-- Tmux with pbcopy integration
+- Tmux with native copy-mode and OSC52 clipboard forwarding
 - Neovim with base plugins
 - FiraCode and JetBrainsMono Nerd Fonts
 - Ghostty terminal emulator
 - Homebrew environment setup
 - Oh-my-zsh with custom configuration
 
+### `home-darwin` (macOS)
+`base-darwin` plus personal Ruby tooling via Nix-managed `rbenv`.
+
 ### `base-linux` (Headless Linux)
 Optimized configuration for headless Linux servers.
 
 **Includes:**
 - All core tools (JDK, Node.js, development CLI tools)
-- Tmux with buffer-only clipboard
+- Tmux with native copy-mode and OSC52 clipboard forwarding
 - Neovim with base plugins
 - Docker Engine
 - Oh-my-zsh with custom configuration
 - No fonts, no Ghostty (headless)
+
+### `home-linux` (Headless Linux)
+`base-linux` plus personal Ruby tooling via Nix-managed `rbenv`.
 
 ## Directory Structure
 
@@ -176,8 +183,10 @@ nix-home/
 ├── modules/
 │   ├── base/                     # Vanilla base modules
 │   │   ├── default.nix           # Imports all vanilla modules
+│   │   ├── homebrew-options.nix  # Shared Homebrew option declarations
 │   │   ├── neovim.nix            # Vanilla neovim (full LSP packages)
 │   │   ├── packages.nix          # Core packages (JDK, Node, tools)
+│   │   ├── ruby.nix              # Optional Ruby capability module
 │   │   ├── tmux.nix              # Tmux configuration
 │   │   ├── shell.nix             # Zsh, oh-my-zsh, custom config
 │   │   ├── git.nix               # Git configuration
@@ -185,9 +194,11 @@ nix-home/
 │   ├── base-lazyvim/             # LazyVim base modules
 │   │   ├── default.nix           # Imports all LazyVim modules
 │   │   └── neovim-lazyvim.nix    # LazyVim neovim (minimal LSPs, Mason handles rest)
+│   ├── personal/
+│   │   └── ruby.nix              # Personal Ruby/rbenv overlay
 │   └── os/                       # OS-specific modules (shared by both)
 │       ├── darwin.nix            # macOS: fonts, Ghostty, clipboard
-│       └── linux.nix             # Linux: Docker, tmux buffer clipboard
+│       └── linux.nix             # Linux: Docker, terminfo
 ├── configs/
 │   ├── neovim/                   # Vanilla Neovim configuration
 │   │   ├── init.lua              # Bootstrap lazy.nvim
@@ -262,8 +273,14 @@ cd ~/Code/nix-home
 # Switch to Vanilla
 home-manager switch --impure --flake .#base-darwin
 
+# Switch to Vanilla + personal Ruby
+home-manager switch --impure --flake .#home-darwin
+
 # Switch to LazyVim
 home-manager switch --impure --flake ./lazyvim#base-darwin
+
+# Switch to LazyVim + personal Ruby
+home-manager switch --impure --flake ./lazyvim#home-darwin
 
 # Changes take effect immediately (restart nvim)
 ```
@@ -401,19 +418,22 @@ These are fundamental development tools needed across many projects. Having them
 
 ### Why Separate OS Modules?
 - **Fonts/Ghostty**: Only needed on macOS (headless Linux doesn't need them)
-- **Clipboard**: Different mechanisms (pbcopy vs tmux buffer)
+- **Clipboard transport**: Same tmux copy workflow, but terminals and hosts differ in OSC52 support
 - **Docker**: Only needed on Linux for this setup
+
+### Why Make Ruby Optional?
+Ruby is a personal/workflow concern, not an OS concern. Keeping it as an opt-in module lets personal profiles enable `rbenv` without forcing Ruby onto shared base or work profiles built on top of this repo.
 
 ### Why No Language-Specific Plugins in Base?
 Keeps the base lightweight and allows extension via separate flakes. For example, a Shopify-specific flake can add Ruby LSP, test runners, and debugging tools without cluttering the base.
 
 ## Tmux Keybindings
 
-- **Prefix**: `Ctrl+s` (instead of default `Ctrl+b`)
+- **Prefix**: `Ctrl+b`
 - **Split horizontal**: `Prefix + |`
 - **Split vertical**: `Prefix + -`
 - **Copy mode**: `Prefix + [`
-- **Yank**: `y` (in copy mode, stays in copy mode)
+- **Yank**: `y` (in copy mode, stays in copy mode and forwards via OSC52 when supported)
 - **Paste**: `Prefix + ]`
 - **Reload config**: `Prefix + r`
 
@@ -437,8 +457,13 @@ See `configs/neovim/KEYBINDINGS.md` for complete keybinding documentation.
 # Manually install TPM
 git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 
-# Inside tmux, press: Ctrl+s then I
+# Inside tmux, press: Ctrl+b then I
 ```
+
+### Clipboard Not Reaching Your Local Machine Over SSH
+- Confirm your terminal emulator supports OSC52 clipboard integration.
+- Reconnect SSH after updating tmux so the client picks up the new settings.
+- Verify tmux still copied the text into its own buffer with `Prefix + ]` even if system clipboard forwarding failed.
 
 ### Fonts Not Showing in Terminal
 - Restart your terminal emulator after switching configurations

@@ -7,15 +7,12 @@
     terminal = "tmux-256color";
     historyLimit = 10000;
     keyMode = "vi";
-    prefix = "C-s";
+    prefix = "C-b";
 
     # Use TPM for all plugins - no Nix plugins
     plugins = [];
 
     extraConfig = ''
-      # Unbind default prefix
-      unbind C-b
-
       unbind r
       bind r source-file ~/.config/tmux/tmux.conf
 
@@ -27,8 +24,9 @@
       set -s extended-keys on
       set -s extended-keys-format xterm
 
-      # Disable passthrough to avoid raw OSC/control sequence leakage in TUIs.
-      set-window-option -g allow-passthrough off
+      # Allow OSC52 passthrough from nested apps while keeping tmux copy-mode
+      # as the primary clipboard path.
+      set -g allow-passthrough on
 
       # Terminal overrides for proper cursor support (use vertical bar cursor)
       set -ga terminal-overrides ',*:Ss=\E[%p1%d q:Se=\E[6 q'
@@ -47,25 +45,19 @@
       # Make new windows inherit current working directory
       bind c new-window -c "#{pane_current_path}"
 
-      # Better mouse scrolling behavior
-      set -g @scroll-speed-num-lines-per-scroll 3
-      set -g @emulate-scroll-for-no-mouse-alternate-buffer on
-
-      # Keep position when copying with mouse
-      set -g @yank_action 'copy-pipe'  # Stay in copy mode after yanking
-
-      # tmux-yank settings - disable mouse copy
-      set -g @yank_with_mouse off
-
       # Enable OSC 52 clipboard (works over SSH without pbcopy/xclip)
       set -g set-clipboard on
       set -ag terminal-features ',*:clipboard'
+
+      # Native copy-mode bindings. These update tmux's paste buffer and let tmux
+      # forward clipboard contents via OSC52 when supported by the client terminal.
+      bind-key -T copy-mode-vi y send-keys -X copy-selection-no-clear
+      bind-key -T copy-mode-vi Enter send-keys -X copy-selection-and-cancel
 
       # List of plugins
       set -g @plugin 'tmux-plugins/tpm'
       set -g @plugin 'catppuccin/tmux'
       set -g @plugin 'tmux-plugins/tmux-cpu'
-      set -g @plugin 'tmux-plugins/tmux-yank'
       set -g @plugin 'pcasaretto/tmux-git-worktree'
       set -g @plugin 'tmux-plugins/tmux-resurrect'
       set -g @plugin 'tmux-plugins/tmux-continuum'
@@ -117,7 +109,7 @@
       set -ga status-left "#[bg=#{@thm_bg},fg=#{@thm_blue}] 󰉋 #{=/-32/...:#{s|$USER|~|:#{b:pane_current_path}}} "
       set -ga status-left "#[bg=#{@thm_bg},fg=#{@thm_overlay_0},none]#{?window_zoomed_flag,│,}"
       set -ga status-left "#[bg=#{@thm_bg},fg=#{@thm_yellow}]#{?window_zoomed_flag,  zoom ,}"
-      set -ga status-left "#{?#{!=:#{git_worktree},},#[bg=#{@thm_bg}#,fg=#{@thm_overlay_0}]│#[bg=#{@thm_bg}#,fg=#{@thm_flamingo}]  #{git_worktree} ,}"
+      set -ga status-left "#{?#{!=:#{git_worktree},},#[bg=#{@thm_bg},fg=#{@thm_overlay_0}]│#[bg=#{@thm_bg},fg=#{@thm_flamingo}]  #{git_worktree} ,}"
 
       # status right look and feel
       set -g status-right '#[bg=#{@thm_bg},fg=#{@thm_green}]   CPU #{cpu_percentage} '
