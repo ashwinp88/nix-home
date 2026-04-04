@@ -9,14 +9,17 @@
     vimdiffAlias = true;
     withRuby = false;  # Use project-specific Ruby via shadowenv
     withPython3 = true;
-    withNodeJs = true;
+    withNodeJs = false;
 
     # Minimal packages - LazyVim's Mason handles most LSPs
     extraPackages = with pkgs; [
+      # Node runtime for language servers and formatters
+      nodejs_24
+
       # Formatters and linters (not managed by Mason)
       stylua
-      nixfmt-rfc-style
-      nodePackages.prettier
+      nixfmt
+      prettier
 
       # Essential tools (always needed)
       tree-sitter

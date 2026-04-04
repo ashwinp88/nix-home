@@ -19,10 +19,10 @@
 
     # Nix tools
     nil             # Nix LSP
-    nixfmt-rfc-style # Nix formatter
+    nixfmt          # Nix formatter
 
     # Language runtimes (always available)
-    nodejs_20       # Node.js for development
+    nodejs_24       # Node.js for development
     jdk21           # Java Development Kit
 
     # Additional tools

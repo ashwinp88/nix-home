@@ -53,6 +53,10 @@
       # forward clipboard contents via OSC52 when supported by the client terminal.
       bind-key -T copy-mode-vi y send-keys -X copy-selection-no-clear
       bind-key -T copy-mode-vi Enter send-keys -X copy-selection-and-cancel
+      # Keep mouse selections visible after release instead of tmux's default
+      # copy-pipe-and-cancel behavior on drag end.
+      bind-key -T copy-mode MouseDragEnd1Pane send-keys -X copy-selection-no-clear
+      bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-selection-no-clear
 
       # List of plugins
       set -g @plugin 'tmux-plugins/tpm'

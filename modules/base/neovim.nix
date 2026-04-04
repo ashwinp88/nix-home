@@ -9,20 +9,23 @@
     vimdiffAlias = true;
     withRuby = false;  # Use project-specific Ruby via shadowenv
     withPython3 = true;
-    withNodeJs = true;
+    withNodeJs = false;
 
     # Extra packages available to Neovim
     extraPackages = with pkgs; [
+      # Node runtime for language servers and formatters
+      nodejs_24
+
       # Language servers
       lua-language-server
       nil  # Nix LSP
-      nodePackages.typescript-language-server
-      nodePackages.vscode-langservers-extracted  # HTML, CSS, JSON, ESLint
+      typescript-language-server
+      vscode-langservers-extracted  # HTML, CSS, JSON, ESLint
 
       # Formatters and linters
       stylua
-      nixfmt-rfc-style
-      nodePackages.prettier
+      nixfmt
+      prettier
 
       # Essential tools
       tree-sitter
